@@ -1,0 +1,126 @@
+Aver en mi data.ts, quiero que me ayudes en una cosa, lo que deseo es que al momento de que el administrador agregue un usuario lo agrega con contraseña y todo, pero lo que quiero es que al momento de que el usuario nuevo ingrese con sus credenciales que pueda cambiar su contraseña, entonces que al momento de que ingrese que lo redireccione a su perfil para que pueda poner una contraseña nueva y que bueno también pueda actualizar la contraseña las veces que quiera. Te adjuntos los archivos necesario y la estructura de mi proyecto para que me digas si debo cambiar más cosas.
++---ai
+|       dev.ts
+|       genkit.ts
+|
++---app
+|   |   favicon.ico
+|   |   globals.css
+|   |   layout.tsx
+|   |   page.tsx
+|   |
+|   +---(app)
+|   |   |   layout.tsx
+|   |   |
+|   |   +---admin
+|   |   |   +---grading
+|   |   |   |       page.tsx
+|   |   |   |
+|   |   |   \---users
+|   |   |       |   page.tsx
+|   |   |       |
+|   |   |       \---manage
+|   |   |           +---create
+|   |   |           |       page.tsx
+|   |   |           |
+|   |   |           \---[userId]
+|   |   |                   page.tsx
+|   |   |
+|   |   +---assign-indicators
+|   |   |       page.tsx
+|   |   |
+|   |   +---dashboard
+|   |   |       page.tsx
+|   |   |
+|   |   +---my-assignments
+|   |   |       page.tsx
+|   |   |
+|   |   \---profile
+|   |           page.tsx
+|   |
+|   +---(auth)
+|   |   \---login
+|   |           page.tsx
+|   |
+|   \---api
+|       \---assigned-indicators
+|           \---[id]
+|                   route.ts
+|
++---components
+|   +---admin
+|   |   |   UserManagementTable.tsx
+|   |   |
+|   |   \---grading
+|   |           AdminGradingTable.tsx
+|   |           GradingAssignmentAccordionItem.tsx
+|   |
+|   +---assign-indicators
+|   |       AssignIndicatorForm.tsx
+|   |
+|   +---auth
+|   |       LoginForm.tsx
+|   |
+|   +---dashboard
+|   |       IndicatorTable.tsx
+|   |
+|   +---layout
+|   |       AppHeader.tsx
+|   |       AppSidebar.tsx
+|   |       Logo.tsx
+|   |       ProgressBarClient.tsx
+|   |
+|   +---my-assignments
+|   |       AssignmentCard.tsx
+|   |       AssignmentDetailsModal.tsx
+|   |       VerificationMethodItem.tsx
+|   |
+|   \---ui
+|           accordion.tsx
+|           alert-dialog.tsx
+|           alert.tsx
+|           avatar.tsx
+|           badge.tsx
+|           button.tsx
+|           calendar.tsx
+|           card.tsx
+|           chart.tsx
+|           checkbox.tsx
+|           dialog.tsx
+|           dropdown-menu.tsx
+|           form.tsx
+|           input.tsx
+|           label.tsx
+|           menubar.tsx
+|           popover.tsx
+|           progress.tsx
+|           radio-group.tsx
+|           scroll-area.tsx
+|           select.tsx
+|           separator.tsx
+|           sheet.tsx
+|           sidebar.tsx
+|           skeleton.tsx
+|           slider.tsx
+|           switch.tsx
+|           table.tsx
+|           tabs.tsx
+|           textarea.tsx
+|           toast.tsx
+|           toaster.tsx
+|           tooltip.tsx
+|
++---config
+|       site.ts
+|
++---hooks
+|       use-mobile.tsx
+|       use-toast.ts
+|       useAuth.ts
+|
+\---lib
+        data.ts
+        firebase-functions.ts
+        firebase.ts
+        types.ts
+        utils.ts

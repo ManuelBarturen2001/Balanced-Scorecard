@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Save, UserCircle, ShieldQuestion, Lock, AlertCircle } from 'lucide-react';
+import { Save, UserCircle, ShieldQuestion, Lock, AlertCircle, GraduationCap, Building2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getFacultyById, getProfessionalSchoolById } from '@/lib/data';
+import type { Faculty, ProfessionalSchool } from '@/lib/types';
 
 export default function ProfilePage() {
   const { user, loading: authLoading, updateUserProfile, changePassword, markAsExperienced } = useAuth();
@@ -28,6 +30,8 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [faculty, setFaculty] = useState<Faculty | null>(null);
+  const [professionalSchool, setProfessionalSchool] = useState<ProfessionalSchool | null>(null);
 
   // Verificar si es el primer login
   const isFirstLogin = searchParams.get('firstLogin') === 'true' || user?.isFirstLogin;
@@ -40,6 +44,17 @@ export default function ProfilePage() {
       setName(user.name);
       setEmail(user.email);
       setAvatar(user.avatar || '');
+      
+      // Obtener información de facultad y escuela profesional
+      if (user.facultyId) {
+        const userFaculty = getFacultyById(user.facultyId);
+        setFaculty(userFaculty || null);
+      }
+      
+      if (user.professionalSchoolId) {
+        const userProfessionalSchool = getProfessionalSchoolById(user.professionalSchoolId);
+        setProfessionalSchool(userProfessionalSchool || null);
+      }
     }
   }, [user, authLoading, router]);
 
@@ -217,6 +232,7 @@ export default function ProfilePage() {
                   required
                 />
               </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="profile-avatar">URL del Avatar (opcional)</Label>
                 <Input
@@ -230,6 +246,28 @@ export default function ProfilePage() {
                   Usa una URL de imagen completa. Por ejemplo: <code>https://placehold.co/128x128.png</code>
                 </p>
               </div>
+
+              {/* Información académica no editable */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-lg font-semibold text-muted-foreground">Información Académica</h3>
+                
+                <div className="space-y-2">
+                  <Label>Facultad</Label>
+                  <div className="flex items-center space-x-2 text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <span>{faculty ? faculty.name : 'No asignada'}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Escuela Profesional</Label>
+                  <div className="flex items-center space-x-2 text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                    <span>{professionalSchool ? professionalSchool.name : 'No asignada'}</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                   <Label>Rol</Label>
                   <div className="flex items-center space-x-2 text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">

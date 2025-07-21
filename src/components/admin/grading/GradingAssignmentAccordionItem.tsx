@@ -193,7 +193,7 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
                      
                                         Subido: {
                                         //@ts-ignore
-                                        format(new Date( method.submittedFile?.uploadedAt?.seconds * 1000), 'dd MMM, yyyy, HH:mm', { locale: es })}
+                                        format(new Date( method.submittedFile?.uploadedAt?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}
                                     </span>
                                 )}
                             </div>

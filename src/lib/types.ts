@@ -9,6 +9,20 @@ export interface User {
   role: UserRole;
   avatar?: string; // URL to avatar image
   isFirstLogin?: boolean; // Optional, used to track first login
+  facultyId?: string; // Nueva propiedad para facultad
+  professionalSchoolId?: string; // Nueva propiedad para escuela profesional
+}
+
+export interface Faculty {
+  id: string;
+  name: string;
+  shortName: string;
+}
+
+export interface ProfessionalSchool {
+  id: string;
+  name: string;
+  facultyId: string;
 }
 
 export interface Indicator {

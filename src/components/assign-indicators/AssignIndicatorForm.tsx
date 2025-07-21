@@ -177,6 +177,8 @@ export function AssignIndicatorForm() {
       }
 
       const selectedDueDate = new Date(dueDate);
+      // Asegurarnos de que no se vea afectada por la zona horaria local
+      selectedDueDate.setMinutes(selectedDueDate.getMinutes() - selectedDueDate.getTimezoneOffset());
 
       const newAssignedIndicator: Omit<AssignedIndicator, 'id'> = {
         userId: selectedUserId,

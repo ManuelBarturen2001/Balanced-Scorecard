@@ -1,8 +1,135 @@
-import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus } from '@/lib/types';
+import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool } from '@/lib/types';
 import { Library, Target, FileCheck, Users, DollarSign, BarChart2, Briefcase, Lightbulb } from 'lucide-react';
 import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebase';
+
+// Datos de Facultades de la UNMSM
+export const faculties: Faculty[] = [
+  { id: 'fac-1', name: 'Facultad de Medicina', shortName: 'Medicina' },
+  { id: 'fac-2', name: 'Facultad de Derecho y Ciencia Política', shortName: 'Derecho' },
+  { id: 'fac-3', name: 'Facultad de Letras y Ciencias Humanas', shortName: 'Letras' },
+  { id: 'fac-4', name: 'Facultad de Farmacia y Bioquímica', shortName: 'Farmacia' },
+  { id: 'fac-5', name: 'Facultad de Odontología', shortName: 'Odontología' },
+  { id: 'fac-6', name: 'Facultad de Educación', shortName: 'Educación' },
+  { id: 'fac-7', name: 'Facultad de Química e Ingeniería Química', shortName: 'Química' },
+  { id: 'fac-8', name: 'Facultad de Medicina Veterinaria', shortName: 'Veterinaria' },
+  { id: 'fac-9', name: 'Facultad de Ciencias Administrativas', shortName: 'Administración' },
+  { id: 'fac-10', name: 'Facultad de Ciencias Biológicas', shortName: 'Biología' },
+  { id: 'fac-11', name: 'Facultad de Ciencias Contables', shortName: 'Contabilidad' },
+  { id: 'fac-12', name: 'Facultad de Ciencias Económicas', shortName: 'Economía' },
+  { id: 'fac-13', name: 'Facultad de Ciencias Físicas', shortName: 'Física' },
+  { id: 'fac-14', name: 'Facultad de Ciencias Matemáticas', shortName: 'Matemáticas' },
+  { id: 'fac-15', name: 'Facultad de Ciencias Sociales', shortName: 'Sociales' },
+  { id: 'fac-16', name: 'Facultad de Ingeniería Geológica, Minera, Metalúrgica y Geográfica', shortName: 'Geología' },
+  { id: 'fac-17', name: 'Facultad de Ingeniería Industrial', shortName: 'Industrial' },
+  { id: 'fac-18', name: 'Facultad de Ingeniería de Sistemas e Informática', shortName: 'Sistemas' },
+  { id: 'fac-19', name: 'Facultad de Psicología', shortName: 'Psicología' },
+  { id: 'fac-20', name: 'Facultad de Ingeniería Electrónica y Eléctrica', shortName: 'Electrónica' },
+];
+
+// Datos de Escuelas Profesionales de la UNMSM
+export const professionalSchools: ProfessionalSchool[] = [
+  // Medicina
+  { id: 'ep-1', name: 'Medicina Humana', facultyId: 'fac-1' },
+  { id: 'ep-2', name: 'Obstetricia', facultyId: 'fac-1' },
+  { id: 'ep-3', name: 'Enfermería', facultyId: 'fac-1' },
+  { id: 'ep-4', name: 'Nutrición', facultyId: 'fac-1' },
+  { id: 'ep-5', name: 'Tecnología Médica', facultyId: 'fac-1' },
+  
+  // Derecho
+  { id: 'ep-6', name: 'Derecho', facultyId: 'fac-2' },
+  { id: 'ep-7', name: 'Ciencia Política', facultyId: 'fac-2' },
+  
+  // Letras y Ciencias Humanas
+  { id: 'ep-8', name: 'Literatura', facultyId: 'fac-3' },
+  { id: 'ep-9', name: 'Filosofía', facultyId: 'fac-3' },
+  { id: 'ep-10', name: 'Historia', facultyId: 'fac-3' },
+  { id: 'ep-11', name: 'Lingüística', facultyId: 'fac-3' },
+  { id: 'ep-12', name: 'Comunicación Social', facultyId: 'fac-3' },
+  { id: 'ep-13', name: 'Bibliotecología y Ciencias de la Información', facultyId: 'fac-3' },
+  { id: 'ep-14', name: 'Arte', facultyId: 'fac-3' },
+  { id: 'ep-15', name: 'Danza', facultyId: 'fac-3' },
+  { id: 'ep-16', name: 'Conservación y Restauración', facultyId: 'fac-3' },
+  
+  // Farmacia
+  { id: 'ep-17', name: 'Farmacia y Bioquímica', facultyId: 'fac-4' },
+  { id: 'ep-18', name: 'Ciencia de los Alimentos', facultyId: 'fac-4' },
+  { id: 'ep-19', name: 'Toxicología', facultyId: 'fac-4' },
+  
+  // Odontología
+  { id: 'ep-20', name: 'Odontología', facultyId: 'fac-5' },
+  
+  // Educación
+  { id: 'ep-21', name: 'Educación', facultyId: 'fac-6' },
+  { id: 'ep-22', name: 'Educación Física', facultyId: 'fac-6' },
+  
+  // Química
+  { id: 'ep-23', name: 'Química', facultyId: 'fac-7' },
+  { id: 'ep-24', name: 'Ingeniería Química', facultyId: 'fac-7' },
+  
+  // Veterinaria
+  { id: 'ep-25', name: 'Medicina Veterinaria', facultyId: 'fac-8' },
+  
+  // Administración
+  { id: 'ep-26', name: 'Administración', facultyId: 'fac-9' },
+  { id: 'ep-27', name: 'Administración de Negocios Internacionales', facultyId: 'fac-9' },
+  { id: 'ep-28', name: 'Administración de Turismo', facultyId: 'fac-9' },
+  
+  // Biología
+  { id: 'ep-29', name: 'Ciencias Biológicas', facultyId: 'fac-10' },
+  { id: 'ep-30', name: 'Genética y Biotecnología', facultyId: 'fac-10' },
+  { id: 'ep-31', name: 'Microbiología y Parasitología', facultyId: 'fac-10' },
+  
+  // Contabilidad
+  { id: 'ep-32', name: 'Contabilidad', facultyId: 'fac-11' },
+  { id: 'ep-33', name: 'Auditoría Empresarial y del Sector Público', facultyId: 'fac-11' },
+  
+  // Economía
+  { id: 'ep-34', name: 'Economía', facultyId: 'fac-12' },
+  { id: 'ep-35', name: 'Economía Pública', facultyId: 'fac-12' },
+  { id: 'ep-36', name: 'Economía Internacional', facultyId: 'fac-12' },
+  
+  // Física
+  { id: 'ep-37', name: 'Física', facultyId: 'fac-13' },
+  { id: 'ep-38', name: 'Ingeniería Mecánica de Fluidos', facultyId: 'fac-13' },
+  
+  // Matemáticas
+  { id: 'ep-39', name: 'Matemática', facultyId: 'fac-14' },
+  { id: 'ep-40', name: 'Estadística', facultyId: 'fac-14' },
+  { id: 'ep-41', name: 'Computación Científica', facultyId: 'fac-14' },
+  { id: 'ep-42', name: 'Investigación Operativa', facultyId: 'fac-14' },
+  
+  // Ciencias Sociales
+  { id: 'ep-43', name: 'Sociología', facultyId: 'fac-15' },
+  { id: 'ep-44', name: 'Antropología', facultyId: 'fac-15' },
+  { id: 'ep-45', name: 'Trabajo Social', facultyId: 'fac-15' },
+  { id: 'ep-46', name: 'Arqueología', facultyId: 'fac-15' },
+  
+  // Geología
+  { id: 'ep-47', name: 'Ingeniería Geológica', facultyId: 'fac-16' },
+  { id: 'ep-48', name: 'Ingeniería de Minas', facultyId: 'fac-16' },
+  { id: 'ep-49', name: 'Ingeniería Metalúrgica', facultyId: 'fac-16' },
+  { id: 'ep-50', name: 'Ingeniería Geográfica', facultyId: 'fac-16' },
+  
+  // Industrial
+  { id: 'ep-51', name: 'Ingeniería Industrial', facultyId: 'fac-17' },
+  { id: 'ep-52', name: 'Ingeniería de Seguridad y Salud en el Trabajo', facultyId: 'fac-17' },
+  
+  // Sistemas
+  { id: 'ep-53', name: 'Ingeniería de Sistemas', facultyId: 'fac-18' },
+  { id: 'ep-54', name: 'Ingeniería de Software', facultyId: 'fac-18' },
+  
+  // Psicología
+  { id: 'ep-55', name: 'Psicología', facultyId: 'fac-19' },
+  { id: 'ep-56', name: 'Psicología Organizacional y de la Gestión Humana', facultyId: 'fac-19' },
+  
+  // Electrónica
+  { id: 'ep-57', name: 'Ingeniería Electrónica', facultyId: 'fac-20' },
+  { id: 'ep-58', name: 'Ingeniería Eléctrica', facultyId: 'fac-20' },
+  { id: 'ep-59', name: 'Ingeniería de Telecomunicaciones', facultyId: 'fac-20' },
+  { id: 'ep-60', name: 'Ingeniería Biomédica', facultyId: 'fac-20' },
+];
 
 export const users: User[] = [
   { id: 'user-1', name: 'Alicia Admin', email: 'alice@example.com', role: 'admin', avatar: 'https://placehold.co/100x100' },
@@ -30,7 +157,6 @@ const getDueDate = (days: number): Date => {
   date.setDate(today.getDate() + days);
   return date;
 };
-
 
 export const assignedIndicators: AssignedIndicator[] = [
   {
@@ -139,7 +265,7 @@ export const getIndicatorById = async (id: string): Promise<Indicator | undefine
     return undefined;
   }
 };
-//export const getPerspectiveById = (id: string) => perspectives.find(p => p.id === id);
+
 export const getPerspectiveById = async (id: string): Promise<Perspective | undefined> => {
   console.log(id)
   try {
@@ -149,6 +275,23 @@ export const getPerspectiveById = async (id: string): Promise<Perspective | unde
     console.error('Error fetching perspective:', error);
     return undefined;
   }
+};
+
+// Funciones para obtener facultades y escuelas profesionales
+export const getFacultyById = (id: string): Faculty | undefined => {
+  return faculties.find(f => f.id === id);
+};
+
+export const getProfessionalSchoolById = (id: string): ProfessionalSchool | undefined => {
+  return professionalSchools.find(ps => ps.id === id);
+};
+
+export const getAllFaculties = (): Faculty[] => {
+  return faculties;
+};
+
+export const getProfessionalSchoolsByFaculty = (facultyId: string): ProfessionalSchool[] => {
+  return professionalSchools.filter(ps => ps.facultyId === facultyId);
 };
 
 export const getAllUsers = async (): Promise<User[]> => {

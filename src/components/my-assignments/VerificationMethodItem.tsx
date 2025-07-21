@@ -95,7 +95,7 @@ export function VerificationMethodItem({ assignedIndicatorId, verificationMethod
     try {
       const methodName = verificationMethod?.name || 'Método de Verificación';
       const currentDate = new Date();
-      const fileName = `${methodName.substring(0, 4)}_${format(currentDate, 'yyyy-MM-dd_HH-mm')}`;
+      const fileName = `${methodName.substring(0, 4)}_${format(currentDate, 'dd-MMM-yyyy HH:mm:ss')}`;
       
       const submittedFile = {
         name: fileName,
@@ -170,7 +170,7 @@ export function VerificationMethodItem({ assignedIndicatorId, verificationMethod
           Vence: <span className={cn("font-medium", currentStatus === 'Overdue' ? 'text-destructive' : 'text-foreground')}>{
             //! new Date( method.submittedFile?.uploadedAt?.seconds * 1000)
             //@ts-ignore
-          format(new Date(localMethod.dueDate?.seconds * 1000), 'dd MMM, yyyy', { locale: es })
+          format(new Date(localMethod.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
           }</span>
         </p>
       )}
@@ -187,7 +187,7 @@ export function VerificationMethodItem({ assignedIndicatorId, verificationMethod
               <span className="text-muted-foreground text-xs block">
                 Subido: {
                   //@ts-ignore
-          format(new Date(localMethod.submittedFile?.uploadedAt?.seconds * 1000), 'dd MMM, yyyy', { locale: es })
+          format(new Date(localMethod.submittedFile?.uploadedAt?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
         }
               </span>
             )}

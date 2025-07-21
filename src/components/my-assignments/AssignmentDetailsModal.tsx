@@ -100,7 +100,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
             </p>
             <p className='text-left'>Asignado: <span className="font-semibold text-foreground">{
               //@ts-ignore
-              format(new Date(indicator.assignedDate?.seconds * 1000), 'dd MMMM, yyyy', { locale: es })
+              format(new Date(indicator.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
             }</span></p>
           </div>  
         </DialogHeader>
@@ -128,7 +128,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                      <p className={cn("text-xs mb-2", currentVmStatus === 'Overdue' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
                         Fecha Límite: {
                         //@ts-ignore
-                        format(new Date(vm.dueDate?.seconds * 1000), 'dd MMMM, yyyy', { locale: es })}
+                        format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}
                     </p>
                   )}
                   {vm.submittedFile && (
@@ -142,7 +142,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                              <span className="text-muted-foreground text-xs block">
                                 Subido: {
                                  //@ts-ignore
-                                format(new Date(vm.submittedFile?.uploadedAt?.seconds * 1000), 'dd MMM, yyyy, HH:mm', { locale: es })}
+                                format(new Date(vm.submittedFile?.uploadedAt?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}
                             </span>
                         )}
                          {vm.submittedFile.size && (

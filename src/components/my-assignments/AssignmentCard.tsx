@@ -123,7 +123,7 @@ export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload 
                   <span className="mx-1.5 text-muted-foreground">|</span>
                   Asignado: {
                     //@ts-ignore
-                    format(new Date(assignedIndicator.assignedDate?.seconds * 1000), 'dd MMM, yyyy', { locale: es })
+                    format(new Date(assignedIndicator.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
                   }
                 </CardDescription>
               </div>

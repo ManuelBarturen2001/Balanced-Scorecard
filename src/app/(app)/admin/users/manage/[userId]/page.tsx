@@ -2,14 +2,15 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getUserById, updateUser } from '@/lib/data';
-import type { User } from '@/lib/types';
+import { getUserById, updateUser, getAllFaculties, getProfessionalSchoolsByFaculty } from '@/lib/data';
+import type { User, Faculty, ProfessionalSchool } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, UserCircle2, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +27,10 @@ export default function AdminEditUserPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [facultyId, setFacultyId] = useState('');
+  const [professionalSchoolId, setProfessionalSchoolId] = useState('');
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +55,8 @@ export default function AdminEditUserPage() {
           setName(foundUser.name);
           setEmail(foundUser.email);
           setAvatar(foundUser.avatar || '');
+          setFacultyId(foundUser.facultyId || '');
+          setProfessionalSchoolId(foundUser.professionalSchoolId || '');
         } else {
           setError('Usuario no encontrado');
           toast({
@@ -75,6 +82,39 @@ export default function AdminEditUserPage() {
     fetchUser();
   }, [userId, router, toast]);
 
+  useEffect(() => {
+    const loadFaculties = async () => {
+      try {
+        const facultiesData = getAllFaculties();
+        setFaculties(facultiesData);
+      } catch (error) {
+        console.error('Error loading faculties:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las facultades.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadFaculties();
+  }, [toast]);
+
+  useEffect(() => {
+    if (facultyId) {
+      const schools = getProfessionalSchoolsByFaculty(facultyId);
+      setProfessionalSchools(schools);
+      
+      // Si el usuario ya tenía una escuela profesional, verificar si sigue siendo válida
+      if (professionalSchoolId && !schools.find(s => s.id === professionalSchoolId)) {
+        setProfessionalSchoolId('');
+      }
+    } else {
+      setProfessionalSchools([]);
+      setProfessionalSchoolId('');
+    }
+  }, [facultyId, professionalSchoolId]);
+
   const getInitials = (nameStr: string = "") => {
     const names = nameStr.split(' ');
     let initials = names[0] ? names[0][0] : '';
@@ -97,10 +137,12 @@ export default function AdminEditUserPage() {
         name,
         email,
         avatar,
+        facultyId: facultyId || undefined,
+        professionalSchoolId: professionalSchoolId || undefined,
       });
       
       // Update local state for immediate feedback
-      setUserToEdit(prev => prev ? {...prev, name, email, avatar} : null);
+      setUserToEdit(prev => prev ? {...prev, name, email, avatar, facultyId, professionalSchoolId} : null);
 
       // If the edited user is the current logged-in user, update the activeUser in localStorage
       if (currentUser && currentUser.id === userId) {
@@ -108,6 +150,8 @@ export default function AdminEditUserPage() {
           name,
           email,
           avatar,
+          facultyId: facultyId || undefined,
+          professionalSchoolId: professionalSchoolId || undefined,
         });
       }
 
@@ -147,6 +191,8 @@ export default function AdminEditUserPage() {
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </CardContent>
           <CardFooter className="flex justify-between">
             <Skeleton className="h-10 w-24" />
@@ -157,7 +203,7 @@ export default function AdminEditUserPage() {
     );
   }
 
-  if (!isAdmin) return null; // Already handled by useEffect redirect, but good for safety
+  if (!isAdmin) return null;
   
   if (error) {
     return (
@@ -181,7 +227,6 @@ export default function AdminEditUserPage() {
   }
   
   if (!userToEdit) return <p className="text-center mt-10">Usuario no encontrado.</p>;
-
 
   return (
     <div className="container mx-auto py-6 md:py-10">
@@ -240,6 +285,42 @@ export default function AdminEditUserPage() {
                <p className="text-xs text-muted-foreground">
                 Usa una URL de imagen completa. Por ejemplo: <code>https://placehold.co/128x128.png</code>
               </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="faculty">Facultad</Label>
+              <Select value={facultyId} onValueChange={setFacultyId} disabled={isSaving}>
+                <SelectTrigger id="faculty">
+                  <SelectValue placeholder="Selecciona una facultad" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sin facultad">Sin facultad</SelectItem>
+                  {faculties.map((faculty) => (
+                    <SelectItem key={faculty.id} value={faculty.id}>
+                      {faculty.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="professional-school">Escuela Profesional</Label>
+              <Select 
+                value={professionalSchoolId} 
+                onValueChange={setProfessionalSchoolId} 
+                disabled={isSaving || !facultyId}
+              >
+                <SelectTrigger id="professional-school">
+                  <SelectValue placeholder={facultyId ? "Selecciona una escuela profesional" : "Primero selecciona una facultad"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sin escuela profesional">Sin escuela profesional</SelectItem>
+                  {professionalSchools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
              <div className="space-y-2">
                 <Label>Rol de Usuario</Label>

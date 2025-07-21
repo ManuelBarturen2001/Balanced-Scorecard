@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Save, UserPlus } from "lucide-react";
-import { createUser } from "@/lib/data";
-import type { UserRole } from "@/lib/types";
+import { createUser, getAllFaculties, getProfessionalSchoolsByFaculty } from "@/lib/data";
+import type { UserRole, Faculty, ProfessionalSchool } from "@/lib/types";
 
 export default function CreateUserPage() {
   const router = useRouter();
@@ -22,7 +23,40 @@ export default function CreateUserPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>("user");
+  const [facultyId, setFacultyId] = useState("");
+  const [professionalSchoolId, setProfessionalSchoolId] = useState("");
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const loadFaculties = async () => {
+      try {
+        const facultiesData = getAllFaculties();
+        setFaculties(facultiesData);
+      } catch (error) {
+        console.error('Error loading faculties:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las facultades.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadFaculties();
+  }, [toast]);
+
+  useEffect(() => {
+    if (facultyId) {
+      const schools = getProfessionalSchoolsByFaculty(facultyId);
+      setProfessionalSchools(schools);
+      setProfessionalSchoolId(''); // Reset professional school when faculty changes
+    } else {
+      setProfessionalSchools([]);
+      setProfessionalSchoolId('');
+    }
+  }, [facultyId]);
 
   const getInitials = (nameStr: string = "") => {
     const names = nameStr.split(" ");
@@ -53,7 +87,14 @@ export default function CreateUserPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await createUser({ name, email, avatar, role }, password);
+      await createUser({ 
+        name, 
+        email, 
+        avatar, 
+        role,
+        facultyId: facultyId || undefined,
+        professionalSchoolId: professionalSchoolId || undefined,
+      }, password);
       toast({
         title: "Usuario creado",
         description: "El nuevo usuario ha sido creado exitosamente.",
@@ -166,18 +207,52 @@ export default function CreateUserPage() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="user-role">Rol</Label>
-              <select
-                id="user-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                disabled={isSaving}
-                className="w-full border rounded-md p-2"
-                required
+              <Label htmlFor="user-faculty">Facultad</Label>
+              <Select value={facultyId} onValueChange={setFacultyId} disabled={isSaving}>
+                <SelectTrigger id="user-faculty">
+                  <SelectValue placeholder="Selecciona una facultad" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sin facultad">Sin facultad</SelectItem>
+                  {faculties.map((faculty) => (
+                    <SelectItem key={faculty.id} value={faculty.id}>
+                      {faculty.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="user-professional-school">Escuela Profesional</Label>
+              <Select 
+                value={professionalSchoolId} 
+                onValueChange={setProfessionalSchoolId} 
+                disabled={isSaving || !facultyId}
               >
-                <option value="user">Usuario</option>
-                <option value="admin">Administrador</option>
-              </select>
+                <SelectTrigger id="user-professional-school">
+                  <SelectValue placeholder={facultyId ? "Selecciona una escuela profesional" : "Primero selecciona una facultad"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sin escuela profesional">Sin escuela profesional</SelectItem>
+                  {professionalSchools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="user-role">Rol</Label>
+              <Select value={role} onValueChange={(value) => setRole(value as UserRole)} disabled={isSaving}>
+                <SelectTrigger id="user-role">
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuario</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end">
@@ -190,4 +265,4 @@ export default function CreateUserPage() {
       </Card>
     </div>
   );
-} 
+}

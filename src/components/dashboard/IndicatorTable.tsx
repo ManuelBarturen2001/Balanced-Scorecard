@@ -66,7 +66,7 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
       
       {
       //@ts-ignore
-      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{format(new Date(vm.dueDate?.seconds * 1000), 'dd MMM, yyyy', { locale: es })}</span></p>
+      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span></p>
       }
       
       {vm.submittedFile && (
@@ -76,7 +76,7 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
             <span className="font-medium text-foreground">{vm.submittedFile.name}</span>
             {
               //@ts-ignore
-             vm.submittedFile.uploadedAt && <span className="text-muted-foreground text-xs block">Subido: {format(new Date(vm.dueDate?.seconds * 1000), 'dd MMM, yyyy, HH:mm', { locale: es })}</span>
+             vm.submittedFile.uploadedAt && <span className="text-muted-foreground text-xs block">Subido: {format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span>
             }
           </div>
           <Button variant="outline" size="sm" className="h-auto py-1 px-2 ml-auto text-xs" onClick={() => alert(`Visualizando ${vm.submittedFile?.name}`)}>
@@ -197,7 +197,7 @@ export function IndicatorTable({ assignedIndicators }: IndicatorTableProps) {
                         <span className="hidden sm:inline-block">|</span>
                         <span className="whitespace-nowrap">Asignado: {
                         //@ts-ignore
-                        format(new Date(assignedInd.assignedDate?.seconds * 1000), 'dd MMM, yyyy', { locale: es })}</span>
+                        format(new Date(assignedInd.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

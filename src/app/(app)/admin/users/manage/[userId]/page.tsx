@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getUserById, updateUser, getAllFaculties, getProfessionalSchoolsByFaculty } from '@/lib/data';
-import type { User, Faculty, ProfessionalSchool } from '@/lib/types';
+import type { User, UserRole, RoleType, Faculty, ProfessionalSchool } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, UserCircle2, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,9 @@ export default function AdminEditUserPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [role, setRole] = useState<UserRole>('usuario');
+  const [roleType, setRoleType] = useState<RoleType>('variante');
+  const [availableRoles, setAvailableRoles] = useState<UserRole[]>(['usuario']);
   const [facultyId, setFacultyId] = useState('');
   const [professionalSchoolId, setProfessionalSchoolId] = useState('');
   const [faculties, setFaculties] = useState<Faculty[]>([]);
@@ -34,6 +38,14 @@ export default function AdminEditUserPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Configuración de roles según el tipo
+  const roleConfig = {
+    usuario: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
+    calificador: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
+    asignador: { type: 'unico' as RoleType, availableRoles: ['asignador'] },
+    admin: { type: 'unico' as RoleType, availableRoles: ['admin'] }
+  };
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -55,6 +67,9 @@ export default function AdminEditUserPage() {
           setName(foundUser.name);
           setEmail(foundUser.email);
           setAvatar(foundUser.avatar || '');
+          setRole(foundUser.role);
+          setRoleType(foundUser.roleType || 'variante');
+          setAvailableRoles(foundUser.availableRoles || [foundUser.role]);
           setFacultyId(foundUser.facultyId || '');
           setProfessionalSchoolId(foundUser.professionalSchoolId || '');
         } else {
@@ -104,67 +119,67 @@ export default function AdminEditUserPage() {
     if (facultyId) {
       const schools = getProfessionalSchoolsByFaculty(facultyId);
       setProfessionalSchools(schools);
-      
-      // Si el usuario ya tenía una escuela profesional, verificar si sigue siendo válida
-      if (professionalSchoolId && !schools.find(s => s.id === professionalSchoolId)) {
-        setProfessionalSchoolId('');
-      }
     } else {
       setProfessionalSchools([]);
       setProfessionalSchoolId('');
     }
-  }, [facultyId, professionalSchoolId]);
+  }, [facultyId]);
+
+  // Actualizar configuración de roles cuando cambia el rol principal
+  useEffect(() => {
+    const config = roleConfig[role];
+    setRoleType(config.type);
+    if (config.type === 'variante') {
+      setAvailableRoles(config.availableRoles);
+    } else {
+      setAvailableRoles([role]);
+    }
+  }, [role]);
 
   const getInitials = (nameStr: string = "") => {
-    const names = nameStr.split(' ');
-    let initials = names[0] ? names[0][0] : '';
+    const names = nameStr.split(" ");
+    let initials = names[0] ? names[0][0] : "";
     if (names.length > 1 && names[names.length - 1]) {
       initials += names[names.length - 1][0];
     } else if (names[0] && names[0].length > 1) {
-      initials = names[0].substring(0,2);
+      initials = names[0].substring(0, 2);
     }
-    return initials.toUpperCase() || 'U';
+    return initials.toUpperCase() || "U";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userToEdit) return;
     setIsSaving(true);
-
+    
     try {
-      // Update user in Firebase
-      await updateUser(userId, {
+      if (!userToEdit) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const updatedUserData = {
         name,
         email,
         avatar,
+        role,
+        roleType,
+        availableRoles,
         facultyId: facultyId || undefined,
         professionalSchoolId: professionalSchoolId || undefined,
+      };
+
+      await updateUser(userId, updatedUserData);
+      
+      toast({
+        title: "Usuario actualizado",
+        description: "La información del usuario ha sido actualizada exitosamente.",
       });
       
-      // Update local state for immediate feedback
-      setUserToEdit(prev => prev ? {...prev, name, email, avatar, facultyId, professionalSchoolId} : null);
-
-      // If the edited user is the current logged-in user, update the activeUser in localStorage
-      if (currentUser && currentUser.id === userId) {
-        await updateUserProfile({
-          name,
-          email,
-          avatar,
-          facultyId: facultyId || undefined,
-          professionalSchoolId: professionalSchoolId || undefined,
-        });
-      }
-
-      toast({
-        title: "Perfil Actualizado",
-        description: `La información de ${name} ha sido actualizada exitosamente.`,
-      });
       router.push('/admin/users');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user:', error);
       toast({
-        title: "Error al Actualizar",
-        description: "No se pudo actualizar la información del usuario. Por favor, intenta de nuevo.",
+        title: "Error",
+        description: error.message || "Error al actualizar el usuario.",
         variant: "destructive",
       });
     } finally {
@@ -174,170 +189,240 @@ export default function AdminEditUserPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="container mx-auto py-10">
-        <Skeleton className="h-10 w-48 mb-2" />
-        <Skeleton className="h-6 w-72 mb-8" />
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-24 w-24 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-4 w-52" />
+      <div className="container mx-auto py-6">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-10 w-full" />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-32" />
-          </CardFooter>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
-  if (!isAdmin) return null;
-  
   if (error) {
     return (
-      <div className="container mx-auto py-10">
-        <Button variant="outline" onClick={() => router.push('/admin/users')} className="mb-6">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Gestión de Usuarios
-        </Button>
-        <Card className="max-w-2xl mx-auto shadow-lg">
-          <CardHeader className="items-center text-center">
-            <AlertCircle className="h-16 w-16 text-destructive mb-4" />
-            <CardTitle className="font-headline text-2xl">Error</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => window.location.reload()}>Reintentar</Button>
-          </CardContent>
-        </Card>
+      <div className="container mx-auto py-6">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-5 w-5" />
+                Error
+              </CardTitle>
+              <CardDescription>{error}</CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button onClick={() => router.push('/admin/users')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver a Usuarios
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     );
   }
-  
-  if (!userToEdit) return <p className="text-center mt-10">Usuario no encontrado.</p>;
 
   return (
-    <div className="container mx-auto py-6 md:py-10">
-       <Button variant="outline" onClick={() => router.push('/admin/users')} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Volver a Gestión de Usuarios
-      </Button>
-      <Card className="max-w-2xl mx-auto shadow-lg">
-        <form onSubmit={handleSubmit}>
+    <div className="container mx-auto py-6">
+      <div className="max-w-2xl mx-auto">
+        <Card>
           <CardHeader>
-            <div className="flex items-center space-x-4 mb-4">
-                <Avatar className="h-24 w-24 border-2 border-primary">
-                    <AvatarImage src={avatar || undefined} alt={name} data-ai-hint="user avatar" />
-                    <AvatarFallback className="text-3xl">{getInitials(name)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <CardTitle className="text-2xl font-headline flex items-center">
-                        <UserCircle2 className="mr-2 h-6 w-6 text-primary" />
-                        Editar Perfil de Usuario
-                    </CardTitle>
-                    <CardDescription>Modifica la información para {userToEdit.name}.</CardDescription>
-                </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle2 className="h-5 w-5" />
+              Editar Usuario
+            </CardTitle>
+            <CardDescription>
+              Modifica la información del usuario del sistema.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre Completo</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isSaving}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSaving}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="avatar">URL del Avatar (opcional)</Label>
-              <Input
-                id="avatar"
-                value={avatar}
-                placeholder="https://placehold.co/128x128.png"
-                onChange={(e) => setAvatar(e.target.value)}
-                disabled={isSaving}
-              />
-               <p className="text-xs text-muted-foreground">
-                Usa una URL de imagen completa. Por ejemplo: <code>https://placehold.co/128x128.png</code>
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="faculty">Facultad</Label>
-              <Select value={facultyId} onValueChange={setFacultyId} disabled={isSaving}>
-                <SelectTrigger id="faculty">
-                  <SelectValue placeholder="Selecciona una facultad" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sin facultad">Sin facultad</SelectItem>
-                  {faculties.map((faculty) => (
-                    <SelectItem key={faculty.id} value={faculty.id}>
-                      {faculty.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="professional-school">Escuela Profesional</Label>
-              <Select 
-                value={professionalSchoolId} 
-                onValueChange={setProfessionalSchoolId} 
-                disabled={isSaving || !facultyId}
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-6">
+              {/* Información básica */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información Personal</h3>
+                
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={avatar} />
+                    <AvatarFallback>{getInitials(name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="name">Nombre completo *</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ingrese el nombre completo"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo electrónico *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="usuario@ejemplo.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="avatar">URL del avatar (opcional)</Label>
+                    <Input
+                      id="avatar"
+                      value={avatar}
+                      onChange={(e) => setAvatar(e.target.value)}
+                      placeholder="https://ejemplo.com/avatar.jpg"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Configuración de roles */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Configuración de Roles</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Rol Principal *</Label>
+                    <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un rol" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="usuario">Usuario (Rol Variante)</SelectItem>
+                        <SelectItem value="calificador">Calificador (Rol Variante)</SelectItem>
+                        <SelectItem value="asignador">Asignador (Rol Único)</SelectItem>
+                        <SelectItem value="admin">Administrador (Rol Único)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Tipo de Rol</Label>
+                    <div className="p-3 border rounded-md bg-muted">
+                      <span className="text-sm font-medium">
+                        {roleType === 'variante' ? 'Rol Variante' : 'Rol Único'}
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {roleType === 'variante' 
+                          ? 'Puede cambiar entre roles disponibles' 
+                          : 'Rol fijo, no puede cambiar'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {roleType === 'variante' && (
+                  <div className="space-y-2">
+                    <Label>Roles Disponibles</Label>
+                    <div className="space-y-2">
+                      {['usuario', 'calificador'].map((availableRole) => (
+                        <div key={availableRole} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={availableRole} 
+                            checked={availableRoles.includes(availableRole as UserRole)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setAvailableRoles(prev => [...prev, availableRole as UserRole]);
+                              } else {
+                                setAvailableRoles(prev => prev.filter(r => r !== availableRole));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={availableRole} className="text-sm">
+                            {availableRole === 'usuario' && 'Usuario'}
+                            {availableRole === 'calificador' && 'Calificador'}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Información académica */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información Académica</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="faculty">Facultad</Label>
+                    <Select value={facultyId} onValueChange={setFacultyId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione una facultad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {faculties.map((faculty) => (
+                          <SelectItem key={faculty.id} value={faculty.id}>
+                            {faculty.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="professionalSchool">Escuela Profesional</Label>
+                    <Select 
+                      value={professionalSchoolId} 
+                      onValueChange={setProfessionalSchoolId}
+                      disabled={!facultyId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {professionalSchools.map((school) => (
+                          <SelectItem key={school.id} value={school.id}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/admin/users')}
               >
-                <SelectTrigger id="professional-school">
-                  <SelectValue placeholder={facultyId ? "Selecciona una escuela profesional" : "Primero selecciona una facultad"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sin escuela profesional">Sin escuela profesional</SelectItem>
-                  {professionalSchools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>
-                      {school.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-             <div className="space-y-2">
-                <Label>Rol de Usuario</Label>
-                <Input value={userToEdit.role === 'admin' ? 'admin' : 'user'} readOnly disabled className="bg-muted/50"/>
-                <p className="text-xs text-muted-foreground">
-                El rol se gestiona desde la tabla principal de usuarios.
-                </p>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" disabled={isSaving}>
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }

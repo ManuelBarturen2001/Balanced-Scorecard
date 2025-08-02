@@ -9,9 +9,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { getAllUsers, getAllIndicators, getAllPerspectives, insertAssignedIndicator, checkExistingAssignment, getAllUsersExceptCurrent } from '@/lib/data';
-import type { AssignedIndicator, User, Indicator, Perspective, VerificationMethod } from '@/lib/types';
-import { Loader2, PlusCircle, Save } from 'lucide-react';
+import { getAllUsers, getAllIndicators, getAllPerspectives, insertAssignedIndicator, checkExistingAssignment, getAllFaculties, getAllProfessionalSchools } from '@/lib/data';
+import type { AssignedIndicator, User, Indicator, Perspective, VerificationMethod, Faculty, ProfessionalSchool } from '@/lib/types';
+import { Loader2, PlusCircle, Save, Search, Filter, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // Función para truncar texto
@@ -20,13 +20,20 @@ const truncateText = (text: string, maxLength: number = 50): string => {
   return text.substring(0, maxLength) + '...';
 };
 
-export function AssignIndicatorForm() {
-  const { user, isAdmin } = useAuth();
+interface AssignIndicatorFormProps {
+  users?: User[];
+  onAssignmentCreated?: () => void;
+}
+
+export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: AssignIndicatorFormProps) {
+  const { user, isAdmin, isAsignador } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [usersForAssignment, setUsersForAssignment] = useState<User[]>([]);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [perspectives, setPerspectives] = useState<Perspective[]>([]);
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
   const [verificationMethods, setVerificationMethods] = useState<string[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isLoadingUsersForAssignment, setIsLoadingUsersForAssignment] = useState(true);
@@ -40,18 +47,35 @@ export function AssignIndicatorForm() {
   const [selectedJuryMembers, setSelectedJuryMembers] = useState<User[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [dueDateError, setDueDateError] = useState('');
+  
+  // Filtros para usuarios
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>('all');
+  const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch users if admin
-        if (isAdmin) {
+        // Si se proporcionan usuarios como prop, usarlos
+        if (propUsers) {
+          setUsers(propUsers);
+          setUsersForAssignment(propUsers);
+          setIsLoadingUsers(false);
+          setIsLoadingUsersForAssignment(false);
+        } else {
+                  // Fetch users if admin or asignador
+        if (isAdmin || isAsignador) {
+          console.log('Fetching users for admin/asignador...');
           const [fetchedUsers, fetchedUsersForAssignment] = await Promise.all([
             getAllUsers(), // Para jurados (todos los usuarios)
-            getAllUsersExceptCurrent(user?.id || '') // Para asignación (excluyendo usuario actual)
+            getAllUsers() // Para asignación (todos los usuarios elegibles)
           ]);
+          console.log('Fetched users:', fetchedUsers);
+          console.log('Fetched users for assignment:', fetchedUsersForAssignment);
           setUsers(fetchedUsers);
           setUsersForAssignment(fetchedUsersForAssignment);
+        }
         }
         
         // Fetch indicators
@@ -61,6 +85,14 @@ export function AssignIndicatorForm() {
         // Fetch perspectives
         const fetchedPerspectives = await getAllPerspectives();
         setPerspectives(fetchedPerspectives);
+
+        // Fetch faculties and schools
+        const [fetchedFaculties, fetchedSchools] = await Promise.all([
+          getAllFaculties(),
+          getAllProfessionalSchools()
+        ]);
+        setFaculties(fetchedFaculties);
+        setProfessionalSchools(fetchedSchools);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
@@ -77,7 +109,7 @@ export function AssignIndicatorForm() {
     };
 
     fetchData();
-  }, [isAdmin, user?.id, toast]);
+  }, [isAdmin, isAsignador, propUsers, toast]);
 
   // Fetch verification methods when indicator changes
   useEffect(() => {
@@ -101,46 +133,126 @@ export function AssignIndicatorForm() {
     }
   }, [selectedIndicatorId, indicators, toast]);
 
-  // Filtrar usuarios disponibles para jurado (excluyendo los ya seleccionados)
-  const availableJuryMembers = users.filter(user => 
-    !selectedJuryMembers.some(selected => selected.id === user.id)
-  );
+  // Limpiar calificadores cuando cambie el usuario seleccionado
+  useEffect(() => {
+    if (selectedUserId) {
+      setSelectedJuryMembers([]);
+      setSelectedJuryMember('');
+    }
+  }, [selectedUserId]);
+
+  // Filtrar usuarios según el rol del usuario actual y filtros aplicados
+  const getFilteredUsers = () => {
+    // Usar users en lugar de propUsers
+    const usersToFilter = propUsers || users;
+    if (!usersToFilter || usersToFilter.length === 0) return [];
+    
+    let filtered = usersToFilter;
+    
+    // Si el usuario es asignador o admin, mostrar todos los usuarios elegibles
+    if (isAdmin || isAsignador) {
+      // Aplicar filtro de búsqueda por nombre
+      if (searchTerm) {
+        filtered = filtered.filter(u => 
+          u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          u.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      
+      // Aplicar filtro de facultad
+      if (selectedFacultyFilter !== 'all') {
+        filtered = filtered.filter(u => u.facultyId === selectedFacultyFilter);
+      }
+      
+      // Aplicar filtro de escuela profesional
+      if (selectedSchoolFilter !== 'all') {
+        filtered = filtered.filter(u => u.professionalSchoolId === selectedSchoolFilter);
+      }
+      
+      return filtered;
+    }
+    
+    // Para usuarios normales, solo mostrar su propio usuario
+    return usersToFilter.filter(u => u.id === user?.id);
+  };
+
+  // Filtrar calificadores para el jurado según la facultad del usuario asignado
+  const getFilteredJuryUsers = () => {
+    const usersToFilter = propUsers || users;
+    if (!usersToFilter) return [];
+    
+    // Si no hay usuario seleccionado, mostrar todos los calificadores
+    if (!selectedUserId) {
+      return usersToFilter.filter(u => u.role === 'calificador');
+    }
+    
+    // Obtener la facultad del usuario seleccionado
+    const selectedUser = usersToFilter.find(u => u.id === selectedUserId);
+    const selectedUserFaculty = selectedUser?.facultyId;
+    
+    // Si el usuario seleccionado tiene facultad, filtrar calificadores por esa facultad
+    if (selectedUserFaculty) {
+      return usersToFilter.filter(u => 
+        u.role === 'calificador' && u.facultyId === selectedUserFaculty
+      );
+    }
+    
+    // Si no tiene facultad, mostrar todos los calificadores
+    return usersToFilter.filter(u => u.role === 'calificador');
+  };
+
+  const filteredUsers = getFilteredUsers();
+  const filteredJuryUsers = getFilteredJuryUsers();
+  
+  console.log('Filtered users:', filteredUsers);
+  console.log('Filtered jury users:', filteredJuryUsers);
 
   const handleAddJuryMember = () => {
     if (selectedJuryMember && !selectedJuryMembers.some(member => member.id === selectedJuryMember)) {
-      const juryMember = users.find(user => user.id === selectedJuryMember);
+      const juryMember = users.find(u => u.id === selectedJuryMember);
       if (juryMember) {
-        setSelectedJuryMembers(prev => [...prev, juryMember]);
+        setSelectedJuryMembers([...selectedJuryMembers, juryMember]);
         setSelectedJuryMember('');
       }
     }
   };
 
   const handleRemoveJuryMember = (juryMemberId: string) => {
-    setSelectedJuryMembers(prev => prev.filter(member => member.id !== juryMemberId));
+    setSelectedJuryMembers(selectedJuryMembers.filter(member => member.id !== juryMemberId));
   };
 
-  // Validación reactiva de la fecha de vencimiento
-  useEffect(() => {
-    if (dueDate) {
-      const selectedDate = new Date(dueDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Comparación justa por día
-      
-      if (selectedDate < today) {
-        setDueDateError('La fecha de vencimiento no puede ser anterior a hoy.');
-      } else {
-        setDueDateError('');
-      }
-    } else {
-      setDueDateError('');
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedFacultyFilter('all');
+    setSelectedSchoolFilter('all');
+  };
+
+  // Resetear escuela cuando cambie la facultad
+  const handleFacultyChange = (facultyId: string) => {
+    setSelectedFacultyFilter(facultyId);
+    // Si se selecciona una facultad específica, resetear la escuela
+    if (facultyId !== 'all') {
+      setSelectedSchoolFilter('all');
     }
-  }, [dueDate]);
+  };
+
+  const getFacultyName = (facultyId: string) => {
+    const faculty = faculties.find(f => f.id === facultyId);
+    return faculty?.name || 'Sin facultad';
+  };
+
+  const getSchoolName = (schoolId: string) => {
+    const school = professionalSchools.find(s => s.id === schoolId);
+    return school?.name || 'Sin escuela';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedUserId || !selectedIndicatorId || !selectedPerspectiveId || verificationMethods.length === 0) {
+    // Determinar el userId basado en el rol del usuario
+    const targetUserId = (isAdmin || isAsignador) ? selectedUserId : (user?.id || '');
+    
+    if (!targetUserId || !selectedIndicatorId || !selectedPerspectiveId || verificationMethods.length === 0) {
       toast({
         title: "Error",
         description: "Por favor completa todos los campos requeridos y asegúrate de que el indicador tenga métodos de verificación.",
@@ -169,7 +281,7 @@ export function AssignIndicatorForm() {
 
     try {
       // Verificar si ya existe una asignación para este usuario e indicador
-      const hasExistingAssignment = await checkExistingAssignment(selectedUserId, selectedIndicatorId);
+      const hasExistingAssignment = await checkExistingAssignment(targetUserId, selectedIndicatorId);
 
       if (hasExistingAssignment) {
         alert(`Ya existe una asignación del indicador seleccionado para el usuario. No se puede crear una asignación duplicada.`);
@@ -181,7 +293,7 @@ export function AssignIndicatorForm() {
       selectedDueDate.setMinutes(selectedDueDate.getMinutes() - selectedDueDate.getTimezoneOffset());
 
       const newAssignedIndicator: Omit<AssignedIndicator, 'id'> = {
-        userId: selectedUserId,
+        userId: targetUserId,
         indicatorId: selectedIndicatorId,
         perspectiveId: selectedPerspectiveId,
         assignedDate: new Date(),
@@ -211,6 +323,8 @@ export function AssignIndicatorForm() {
       setSelectedJuryMembers([]);
       setSelectedJuryMember('');
       setDueDate('');
+      clearFilters();
+      onAssignmentCreated?.(); // Llamar a la función de callback
     } catch (error) {
       console.error('Error assigning indicator:', error);
       toast({
@@ -228,13 +342,111 @@ export function AssignIndicatorForm() {
           <PlusCircle className="mr-2 h-6 w-6 text-primary" />
           Asignar Nuevo Indicador
         </CardTitle>
-        <CardDescription>Selecciona un usuario, indicador, perspectiva y métodos de verificación para asignar.</CardDescription>
+        <CardDescription>
+          {isAsignador 
+            ? "Selecciona un usuario, indicador, perspectiva y métodos de verificación. Los calificadores se filtrarán por la facultad del usuario asignado."
+            : isAdmin
+            ? "Selecciona un usuario, indicador, perspectiva y métodos de verificación. Los calificadores se filtrarán por la facultad del usuario asignado."
+            : "Selecciona un indicador, perspectiva y métodos de verificación para autoasignarte."
+          }
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {isAdmin && (
-            <div className="space-y-2">
-              <Label>Usuario</Label>
+          {(isAdmin || isAsignador) && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Usuario</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
+                </Button>
+              </div>
+
+              {/* Filtros */}
+              {showFilters && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre o email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="flex-1"
+                    />
+                    {searchTerm && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSearchTerm('')}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-sm">Facultad</Label>
+                      <Select value={selectedFacultyFilter} onValueChange={handleFacultyChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas las facultades" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las facultades</SelectItem>
+                          {faculties.map((faculty) => (
+                            <SelectItem key={faculty.id} value={faculty.id}>
+                              {faculty.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm">Escuela Profesional</Label>
+                      <Select value={selectedSchoolFilter} onValueChange={setSelectedSchoolFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas las escuelas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las escuelas</SelectItem>
+                          {professionalSchools
+                            .filter(school => selectedFacultyFilter === 'all' || school.facultyId === selectedFacultyFilter)
+                            .map((school) => (
+                              <SelectItem key={school.id} value={school.id}>
+                                {school.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {filteredUsers.length} usuarios encontrados
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="text-xs"
+                    >
+                      Limpiar filtros
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <Select
                 onValueChange={setSelectedUserId}
                 value={selectedUserId}
@@ -244,17 +456,34 @@ export function AssignIndicatorForm() {
                   <SelectValue placeholder={isLoadingUsersForAssignment ? "Cargando usuarios..." : "Selecciona un usuario para asignar el indicador"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {usersForAssignment.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {truncateText(u.name)} ({u.email})
-                    </SelectItem>
-                  ))}
+                  {filteredUsers.length === 0 ? (
+                    <div className="p-2 text-center text-muted-foreground">
+                      No se encontraron usuarios
+                    </div>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{u.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {u.email} • {u.role} • {getFacultyName(u.facultyId || '')} • {getSchoolName(u.professionalSchoolId || '')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              
+              {(isAdmin || isAsignador) && (
+                <p className="text-xs text-muted-foreground">
+                  Puedes asignar a cualquier usuario. Los calificadores del jurado se filtrarán por la facultad del usuario asignado.
+                </p>
+              )}
             </div>
           )}
 
-          {!isAdmin && user && (
+          {!isAdmin && !isAsignador && user && (
             <div className="space-y-2">
               <Label>Usuario</Label>
               <Input 
@@ -300,7 +529,7 @@ export function AssignIndicatorForm() {
                 {perspectives.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     <div className="flex items-center">
-                      {p.icon && <p.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
+                      {p.icon && <p.icon className="mr-2 h-4 w-4" />}
                       {truncateText(p.name)}
                     </div>
                   </SelectItem>
@@ -310,121 +539,114 @@ export function AssignIndicatorForm() {
           </div>
 
           <div className="space-y-2">
-            <Label>Fecha de Vencimiento</Label>
-            <Input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              required
-              min={new Date().toISOString().split('T')[0]}
-              className={dueDateError ? "border-red-500" : ""}
-            />
-            {dueDateError ? (
-              <p className="text-sm text-red-500">
-                {dueDateError}
-              </p>
+            <Label>Métodos de Verificación</Label>
+            {isLoadingVerificationMethods ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm text-muted-foreground">Cargando métodos de verificación...</span>
+              </div>
+            ) : verificationMethods.length > 0 ? (
+              <div className="space-y-2">
+                {verificationMethods.map((method, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <Checkbox id={`method-${index}`} checked={true} disabled />
+                    <Label htmlFor={`method-${index}`} className="text-sm">
+                      {method}
+                    </Label>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Fecha límite para completar todos los métodos de verificación.
-              </p>
+              <p className="text-sm text-muted-foreground">Selecciona un indicador para ver sus métodos de verificación.</p>
             )}
           </div>
 
-          {selectedIndicatorId && (
-            <div className="space-y-2">
-              <Label className="text-base font-medium">Métodos de Verificación</Label>
-              <p className="text-sm text-muted-foreground">
-                Métodos de verificación disponibles para el indicador seleccionado.
-              </p>
-              {isLoadingVerificationMethods ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-sm text-muted-foreground">Cargando métodos de verificación...</span>
-                </div>
-              ) : verificationMethods.length > 0 ? (
-                <div className="space-y-2">
-                  {verificationMethods.map((vm,index) => (
-                    <div
-                      key={index}
-                      className="rounded-md border border-input bg-card p-3 shadow-sm"
-                    >
-                      <div className="font-medium">{vm}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-md border border-input bg-card p-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No hay métodos de verificación disponibles para este indicador.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="space-y-2">
-            <Label className="text-base font-medium">Jurados para Calificación</Label>
-            <p className="text-sm text-muted-foreground">
-              Selecciona los usuarios que calificarán esta asignación.
-            </p>
+            <Label className="text-base font-medium">Jurado Calificador</Label>
+            {!selectedUserId && (isAdmin || isAsignador) && (
+              <p className="text-sm text-muted-foreground">
+                Primero selecciona un usuario para ver los calificadores disponibles de su facultad.
+              </p>
+            )}
             <div className="flex gap-2">
               <Select
                 onValueChange={setSelectedJuryMember}
                 value={selectedJuryMember}
-                disabled={isLoadingUsers || availableJuryMembers.length === 0}
+                disabled={isLoadingUsers || filteredJuryUsers.length === 0 || !selectedUserId}
               >
                 <SelectTrigger className="flex-1">
-                  <SelectValue placeholder={isLoadingUsers ? "Cargando usuarios..." : availableJuryMembers.length === 0 ? "No hay más usuarios disponibles" : "Selecciona un jurado"} />
+                  <SelectValue placeholder={
+                    !selectedUserId ? "Selecciona un usuario primero" :
+                    isLoadingUsers ? "Cargando usuarios..." : 
+                    filteredJuryUsers.length === 0 ? "No hay calificadores disponibles" : 
+                    "Selecciona un jurado"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableJuryMembers.map((u) => (
+                  {filteredJuryUsers.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {truncateText(u.name)} ({u.email})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 onClick={handleAddJuryMember}
-                disabled={!selectedJuryMember || isLoadingUsers}
-                className="px-4"
+                disabled={!selectedJuryMember || isLoadingUsers || !selectedUserId}
+                className="px-3"
               >
-                Agregar
+                <PlusCircle className="h-4 w-4" />
               </Button>
             </div>
-            
-            {selectedJuryMembers.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Jurados Seleccionados:</Label>
-                <div className="space-y-2">
+            {selectedUserId && (
+              <p className="text-xs text-muted-foreground">
+                Mostrando calificadores de la facultad del usuario seleccionado: {
+                  getFacultyName((propUsers || users)?.find(u => u.id === selectedUserId)?.facultyId || '')
+                }
+              </p>
+            )}
+          </div>
+          
+          {selectedJuryMembers.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Jurados Seleccionados:</Label>
+              <ScrollArea className="h-20 w-full rounded-md border p-2">
+                <div className="space-y-1">
                   {selectedJuryMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between rounded-md border border-input bg-card p-3 shadow-sm"
-                    >
-                      <div>
-                        <div className="font-medium">{member.name}</div>
-                        <div className="text-sm text-muted-foreground">{member.email}</div>
-                      </div>
+                    <div key={member.id} className="flex items-center justify-between text-sm">
+                      <span>{member.name} ({member.email})</span>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveJuryMember(member.id)}
-                        className="text-destructive hover:text-destructive"
+                        className="h-6 w-6 p-0"
                       >
-                        Eliminar
+                        ×
                       </Button>
                     </div>
                   ))}
                 </div>
-              </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Fecha de Vencimiento</Label>
+            <Input
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              required
+            />
+            {dueDateError && (
+              <p className="text-sm text-red-600">{dueDateError}</p>
             )}
           </div>
 
-          <CardFooter className="p-0 pt-6">
-            <Button type="submit" className="w-full md:w-auto" disabled={!selectedIndicatorId || verificationMethods.length === 0 || !selectedPerspectiveId || selectedJuryMembers.length === 0 || !dueDate || !!dueDateError}>
+          <CardFooter className="flex justify-end p-0">
+            <Button type="submit" disabled={isLoadingUsers || isLoadingIndicators || isLoadingPerspectives}>
               <Save className="mr-2 h-4 w-4" />
               Asignar Indicador
             </Button>

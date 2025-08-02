@@ -15,8 +15,19 @@ import {
 import { LogOut, UserCircle, Settings, PanelLeft } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar'; 
 import { Logo } from './Logo';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { RoleSwitcher } from './RoleSwitcher';
+import { NotificationBell } from './NotificationBell';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
+const roleLabels = {
+  usuario: 'Usuario',
+  calificador: 'Calificador',
+  asignador: 'Asignador',
+  admin: 'Administrador',
+};
 
 export function AppHeader() {
   const { user, logout } = useAuth();
@@ -44,46 +55,68 @@ export function AppHeader() {
           <Logo iconOnly={false} /> 
         </div>
         
-        {user && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="user avatar" />
-                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <Link href="/profile" passHref legacyBehavior>
-                <DropdownMenuItem asChild>
-                    <a>
-                        <UserCircle className="mr-2 h-4 w-4" />
-                        <span>Perfil</span>
-                    </a>
-                </DropdownMenuItem>
-              </Link>
-              <DropdownMenuItem onClick={() => alert("Página de configuración (simulado)")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Configuración</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Cerrar Sesión</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          
+          {user && (
+            <>
+              {/* Notificaciones */}
+              <NotificationBell />
+              
+              {/* Cambio de roles para usuarios variantes */}
+              <RoleSwitcher />
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="user avatar" />
+                      <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {roleLabels[user.role]}
+                        </Badge>
+                        {user.roleType === 'variante' && (
+                          <Badge variant="secondary" className="text-xs">
+                            Variante
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <Link href="/profile" passHref legacyBehavior>
+                    <DropdownMenuItem asChild>
+                        <a>
+                            <UserCircle className="mr-2 h-4 w-4" />
+                            <span>Perfil</span>
+                        </a>
+                    </DropdownMenuItem>
+                  </Link>
+                  <DropdownMenuItem onClick={() => alert("Página de configuración (simulado)")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configuración</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Cerrar Sesión</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -1,4 +1,10 @@
-Aver en mi data.ts, quiero que me ayudes en una cosa, lo que deseo es que al momento de que el administrador agregue un usuario lo agrega con contraseña y todo, pero lo que quiero es que al momento de que el usuario nuevo ingrese con sus credenciales que pueda cambiar su contraseña, entonces que al momento de que ingrese que lo redireccione a su perfil para que pueda poner una contraseña nueva y que bueno también pueda actualizar la contraseña las veces que quiera. Te adjuntos los archivos necesario y la estructura de mi proyecto para que me digas si debo cambiar más cosas.
+Quiero que cuando un usuario tenga asignaciones que se pueda subir archivos, por que actulamente en vez de archivos solo se pone link, pero requieren que se suba archivos reales por favor, que acepte tanto word o pdf, aparte que tenga un limite de 50MB supongo para empezar y que cuando el usuario aún tenga asignaciones pendientes entonces que si pueda subir archivos, osea que los pueda editar me entiendes? Pero que se guarde las modificaciones en la base de datos, por si sube muchos archivos que se guarde, por ejemplo: el 21-06-2025 subio tal archivo, el 24-06-2025 subio otro archivo pero en la base de datos y que en la vista se muestre el archivo actualizado. y que cuando pase la fecha de pendiente que ya no se pueda subir otro archivo. Dame el codigo completo de donde sea necesario por favor para ponerlo en esos archivos. Además que los archivos se guarden en la carpeta /src/app/(app) y que se cree aparte una carpeta de cada alumno que sube un archivo. Ejm: Si Juan Perez sube un archivo entonces sera ./src/app/(app)/Juan Perez/archivo.pdf y asi para todos los usuarios.
+Ya tengo todos los archivos actualizados como es el:
+src\lib\data.ts - src\lib\types.ts - src\lib\fileUtils.ts
+También he creado los archivos
+src\app\api\files\[..path]\route.ts - src\app\api\upload\route.ts
+Ahora solo me falta previsualizar los archivos que he subido y que si la fecha de vencimiento aún no llega entonces que el usuario pueda editar el archivo que a subido por favor.
+Por favor ayúdame para cumplir con los requerimientos de mi proyecto.
 +---ai
 |       dev.ts
 |       genkit.ts
@@ -46,6 +52,11 @@ Aver en mi data.ts, quiero que me ayudes en una cosa, lo que deseo es que al mom
 |       \---assigned-indicators
 |           \---[id]
 |                   route.ts
+|       \---files
+|           \---[...path]
+|               \---route.ts
+|       \---upload
+|           \---route.ts
 |
 +---components
 |   +---admin

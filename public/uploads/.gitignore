@@ -1,0 +1,4 @@
+# Ignorar todos los archivos en esta carpeta por seguridad
+# Los archivos subidos por usuarios no deben estar en el repositorio
+*
+!.gitignore 

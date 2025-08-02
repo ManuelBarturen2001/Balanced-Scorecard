@@ -66,7 +66,36 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
       
       {
       //@ts-ignore
-      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span></p>
+      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{(() => {
+        try {
+          const date = vm.dueDate as any;
+          if (!date) return 'Fecha no disponible';
+          
+          let dateObj: Date;
+          if (date.seconds) {
+            dateObj = new Date(date.seconds * 1000);
+          } else if (date instanceof Date) {
+            dateObj = date;
+          } else if (typeof date === 'object' && date.toDate) {
+            dateObj = date.toDate();
+          } else if (typeof date === 'number') {
+            dateObj = new Date(date);
+          } else if (typeof date === 'string') {
+            dateObj = new Date(date);
+          } else {
+            dateObj = new Date(date);
+          }
+          
+          if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
+            return 'Fecha no disponible';
+          }
+          
+          return format(dateObj, 'dd-MMM-yyyy', { locale: es });
+        } catch (error) {
+          console.error('Error formatting date:', error);
+          return 'Fecha no disponible';
+        }
+      })()}</span></p>
       }
       
       {vm.submittedFile && (

@@ -1,4 +1,4 @@
-import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool } from '@/lib/types';
+import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, MockFile } from '@/lib/types';
 import { Library, Target, FileCheck, Users, DollarSign, BarChart2, Briefcase, Lightbulb } from 'lucide-react';
 import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -290,6 +290,10 @@ export const getAllFaculties = (): Faculty[] => {
   return faculties;
 };
 
+export const getAllProfessionalSchools = (): ProfessionalSchool[] => {
+  return professionalSchools;
+};
+
 export const getProfessionalSchoolsByFaculty = (facultyId: string): ProfessionalSchool[] => {
   return professionalSchools.filter(ps => ps.facultyId === facultyId);
 };
@@ -407,5 +411,57 @@ export const checkExistingAssignment = async (userId: string, indicatorId: strin
   } catch (error) {
     console.error('Error checking existing assignment:', error);
     return false;
+  }
+};
+
+export const uploadFile = async (
+  file: File,
+  assignedIndicatorId: string,
+  verificationMethodName: string,
+  userId: string
+): Promise<{ success: boolean; file?: MockFile; error?: string }> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('assignedIndicatorId', assignedIndicatorId);
+    formData.append('verificationMethodName', verificationMethodName);
+    formData.append('userId', userId);
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { success: false, error: result.error };
+    }
+
+    return { success: true, file: result.file };
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return { success: false, error: 'Error de conexión' };
+  }
+};
+
+export const migrateUserRoles = async (): Promise<void> => {
+  try {
+    const allUsers = await getCollection<User>('user');
+    const usersToMigrate = allUsers.filter(user => user.role === 'user');
+    
+    for (const user of usersToMigrate) {
+      await updateUser(user.id, { 
+        role: 'usuario',
+        roleType: 'variante',
+        availableRoles: ['usuario', 'calificador']
+      });
+      console.log(`Migrated user ${user.name} from 'user' to 'usuario'`);
+    }
+    
+    console.log(`Migration completed. ${usersToMigrate.length} users migrated.`);
+  } catch (error) {
+    console.error('Error migrating user roles:', error);
+    throw error;
   }
 };

@@ -11,7 +11,7 @@ import { statusTranslations } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AlertCircle, Briefcase, CheckCircle, Clock, FileText, Info, Paperclip, X } from 'lucide-react';
+import { AlertCircle, Briefcase, CheckCircle, Clock, FileText, Info, Paperclip, X, Eye, Edit } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface AssignmentDetailsModalProps {
@@ -94,15 +94,28 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
           </div>
 
           <div className="text-sm text-muted-foreground mt-2">
-            <p className="flex items-center">
-            <Briefcase className="h-4 w-4 mr-2" />             
-             Perspectiva: <span className="font-semibold text-foreground ml-1">{perspectiveInfo?.name || 'Sin Perspectiva'}</span>
-            </p>
-            <p className='text-left'>Asignado: <span className="font-semibold text-foreground">{
-              //@ts-ignore
-              format(new Date(indicator.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
-            }</span></p>
-          </div>  
+  {/* Línea de Perspectiva con ícono */}
+  <div className="flex items-center">
+    <Briefcase className="h-4 w-4 mr-2" />
+    <span>
+      Perspectiva: 
+      <span className="font-semibold text-foreground ml-1">
+        {perspectiveInfo?.name || 'Sin Perspectiva'}
+      </span>
+    </span>
+  </div>
+
+  {/* Línea de fecha asignada */}
+  <p className="text-left">
+    Asignado: 
+    <span className="font-semibold text-foreground ml-1">
+      {
+        // @ts-ignore
+        format(new Date(indicator.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
+      }
+    </span>
+  </p>
+</div>  
         </DialogHeader>
         
         <ScrollArea className="flex-grow overflow-y-auto px-6 py-4">
@@ -125,12 +138,39 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                     </Badge>
                   </div>
                   {vm.dueDate && (
-                     <p className={cn("text-xs mb-2", currentVmStatus === 'Overdue' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                        Fecha Límite: {
-                        //@ts-ignore
-                        format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Vence: {(() => {
+                      try {
+                        const date = vm.dueDate as any;
+                        if (!date) return 'Fecha no disponible';
+                        
+                        let dateObj: Date;
+                        if (date.seconds) {
+                          dateObj = new Date(date.seconds * 1000);
+                        } else if (date instanceof Date) {
+                          dateObj = date;
+                        } else if (typeof date === 'object' && date.toDate) {
+                          dateObj = date.toDate();
+                        } else if (typeof date === 'number') {
+                          dateObj = new Date(date);
+                        } else if (typeof date === 'string') {
+                          dateObj = new Date(date);
+                        } else {
+                          dateObj = new Date(date);
+                        }
+                        
+                        if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
+                          return 'Fecha no disponible';
+                        }
+                        
+                        return format(dateObj, 'dd-MMM-yyyy', { locale: es });
+                      } catch (error) {
+                        console.error('Error formatting date:', error);
+                        return 'Fecha no disponible';
+                      }
+                    })()}
+                  </p>
+                )}
                   {vm.submittedFile && (
                     <div className="mt-2 text-xs flex items-center gap-2 border-t border-border pt-2">
                       <Paperclip className="h-4 w-4 text-primary flex-shrink-0" />
@@ -151,6 +191,57 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                             </span>
                         )}
                       </div>
+                                             <div className="flex gap-1">
+                         <Button 
+                           variant="outline" 
+                           size="sm" 
+                           className="h-auto py-1 px-2 text-xs"
+                           onClick={() => {
+                             const filePreview = document.createElement('div');
+                             filePreview.className = 'fixed inset-0 z-50 bg-black/50 flex items-center justify-center';
+                             filePreview.innerHTML = `
+                               <div class="bg-white rounded-lg shadow-xl w-11/12 h-5/6 max-w-6xl flex flex-col">
+                                 <div class="flex items-center justify-between p-4 border-b">
+                                   <div>
+                                                                   <h3 class="font-semibold">${vm.submittedFile?.name || 'Archivo'}</h3>
+                              <p class="text-sm text-gray-500">${((vm.submittedFile?.size || 0) / 1024).toFixed(2)} KB</p>
+                                   </div>
+                                   <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                     </svg>
+                                   </button>
+                                 </div>
+                                 <div class="flex-1 p-4">
+                                                                       <iframe src="${vm.submittedFile?.url || ''}" class="w-full h-full border-0" frameborder="0"></iframe>
+                                 </div>
+                               </div>
+                             `;
+                             document.body.appendChild(filePreview);
+                             filePreview.addEventListener('click', (e) => {
+                               if (e.target === filePreview) {
+                                 filePreview.remove();
+                               }
+                             });
+                           }}
+                         >
+                           <Eye className="h-3 w-3 mr-1" /> Ver
+                         </Button>
+                         {currentVmStatus === 'Pending' && vm.submittedFile && (
+                           <Button 
+                             variant="outline" 
+                             size="sm" 
+                             className="h-auto py-1 px-2 text-xs"
+                             onClick={() => {
+                               // Aquí podrías implementar la lógica para editar el archivo
+                               // Por ahora solo mostrará un mensaje
+                               alert('Funcionalidad de edición para asignadores próximamente');
+                             }}
+                           >
+                             <Edit className="h-3 w-3 mr-1" /> Editar
+                           </Button>
+                         )}
+                       </div>
                     </div>
                   )}
                   {vm.notes && (
@@ -158,6 +249,8 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                         Notas: {vm.notes}
                     </p>
                   )}
+                  
+
                 </div>
               );
             })}
@@ -197,6 +290,8 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
             </div>
           </div>
         )}
+        
+
       </DialogContent>
     </Dialog>
   );

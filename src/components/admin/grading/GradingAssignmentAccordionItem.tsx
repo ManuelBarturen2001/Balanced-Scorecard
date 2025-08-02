@@ -16,6 +16,7 @@ import { CheckCircle, AlertCircle, Clock, FileText, Paperclip, Save, Info, Users
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { FilePreview } from '@/components/ui/file-preview';
 
 interface GradingAssignmentAccordionItemProps {
   assignment: AssignedIndicator;
@@ -53,6 +54,8 @@ const statusColorClasses: Record<VerificationStatus, string> = {
 export function GradingAssignmentAccordionItem({ assignment, indicator, indicatorName, userName, onUpdate, currentUser }: GradingAssignmentAccordionItemProps) {
   const [editableMethods, setEditableMethods] = useState<AssignedVerificationMethod[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewFile, setPreviewFile] = useState<any>(null);
 
   const verificationMethods = indicator.verificationMethods || [];
 
@@ -133,6 +136,29 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
   }
   const OverallStatusIcon = statusIcons[overallStatus] || Info;
   
+  const handleViewFile = (file: any) => {
+    if (file?.url) {
+      // Añadir timestamp para evitar caché
+      const fileWithFreshUrl = {
+        ...file,
+        url: `${file.url}?t=${Date.now()}`
+      };
+      setPreviewFile(fileWithFreshUrl);
+      setShowPreview(true);
+    }
+  };
+
+  const handleDownloadFile = (file: any) => {
+    if (file?.url) {
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.download = file.originalName || file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
     <AccordionItem value={assignment.id!} className="border-b border-border last:border-b-0">
       <AccordionTrigger className="hover:bg-muted/30 px-4 py-3 rounded-t-md transition-colors data-[state=open]:bg-muted/50 data-[state=open]:shadow-inner">
@@ -192,12 +218,46 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
                                     <span className="text-muted-foreground text-xs block">
                      
                                         Subido: {
-                                        //@ts-ignore
-                                        format(new Date( method.submittedFile?.uploadedAt?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}
+                                        (() => {
+                                            try {
+                                                const date = method.submittedFile?.uploadedAt;
+                                                if (!date) return 'Fecha no disponible';
+                                                
+                                                let dateObj: Date;
+                                                if (date.seconds) {
+                                                    dateObj = new Date(date.seconds * 1000);
+                                                } else if (date instanceof Date) {
+                                                    dateObj = date;
+                                                } else if (typeof date === 'object' && date.toDate) {
+                                                    dateObj = date.toDate();
+                                                } else if (typeof date === 'number') {
+                                                    dateObj = new Date(date);
+                                                } else if (typeof date === 'string') {
+                                                    dateObj = new Date(date);
+                                                } else {
+                                                    dateObj = new Date(date);
+                                                }
+                                                
+                                                if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
+                                                    return 'Fecha no disponible';
+                                                }
+                                                
+                                                return format(dateObj, 'dd-MMM-yyyy', { locale: es });
+                                            } catch (error) {
+                                                console.error('Error formatting date:', error);
+                                                return 'Fecha no disponible';
+                                            }
+                                        })()}
                                     </span>
                                 )}
                             </div>
-                            <Button variant="outline" size="sm" className="ml-auto py-0.5 px-1.5 h-auto text-xs" onClick={() => alert(`Visualizando ${method.submittedFile?.name} (simulado)`)}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="ml-auto py-0.5 px-1.5 h-auto text-xs" 
+                              onClick={() => handleViewFile(method.submittedFile)}
+                              disabled={!method.submittedFile?.url}
+                            >
                                 <Eye className="h-3 w-3 mr-1"/> Ver
                             </Button>
                         </div>
@@ -254,6 +314,17 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
             </Button>
         </CardFooter>
       </AccordionContent>
+
+      {/* Agregar el componente FilePreview al final */}
+      <FilePreview
+        file={previewFile}
+        isOpen={showPreview}
+        onClose={() => {
+          setShowPreview(false);
+          setPreviewFile(null);
+        }}
+        onDownload={() => handleDownloadFile(previewFile)}
+      />
     </AccordionItem>
   );
 }

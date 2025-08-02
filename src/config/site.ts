@@ -3,7 +3,7 @@ import type { NavItemConfig } from '@/lib/types';
 import { LayoutDashboard, ListPlus, Users, ClipboardList, ClipboardCheck } from 'lucide-react';
 
 export const AppConfig = {
-  name: "GoalTracker",
+  name: "Sistema Web de Balanced Scorecard",
   description: "Realiza un seguimiento eficaz de tus objetivos e indicadores institucionales.",
 };
 

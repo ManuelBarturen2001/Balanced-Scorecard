@@ -16,6 +16,9 @@ interface AuthContextType {
   changePassword: (newPassword: string) => Promise<void>;
   markAsExperienced: () => Promise<void>;
   isAdmin: boolean;
+  isAsignador: boolean;
+  isCalificador: boolean;
+  isUsuario: boolean;
   loading: boolean;
 }
 
@@ -57,8 +60,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log(querySnapshot.docs[0].id)
       const userData = {id:querySnapshot.docs[0].id,...querySnapshot.docs[0].data()} as User;
-      setUser(userData);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+      
+      // Compatibilidad con el rol "user" - convertirlo a "usuario"
+      if (userData.role === 'user') {
+        userData.role = 'usuario';
+      }
+      
+      // Asegurar que el usuario tenga los campos por defecto si no existen
+      const defaultUserData = {
+        ...userData,
+        roleType: userData.roleType || 'variante',
+        availableRoles: userData.availableRoles || [userData.role],
+        notifications: userData.notifications || [],
+        stats: userData.stats || {},
+      };
+      
+      setUser(defaultUserData);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(defaultUserData));
       
       return true;
     } catch (error: any) {
@@ -81,10 +99,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [router]);
 
   const isAdmin = user?.role === 'admin';
+  const isAsignador = user?.role === 'asignador';
+  const isCalificador = user?.role === 'calificador';
+  const isUsuario = user?.role === 'usuario';
 
-  const updateUserProfile = useCallback(async (updatedData: Partial<Omit<User, 'id' | 'role'>>) => {
+  const updateUserProfile = useCallback(async (updatedData: Partial<Omit<User, 'id' | 'role'> | { role: string }>) => {
     if (!user) throw new Error("Usuario no autenticado");
+    
+    // Importar la función updateUser de data.ts
+    const { updateUser } = await import('@/lib/data');
+    
+    // Actualizar en Firebase
+    await updateUser(user.id, updatedData);
+    
+    // Actualizar estado local
     const updatedUser = { ...user, ...updatedData };
+    console.log('Updating user state:', updatedUser);
     setUser(updatedUser);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
   }, [user]);
@@ -104,7 +134,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return React.createElement(
     AuthContext.Provider,
-    { value: { user, login, logout, isAdmin, loading, updateUserProfile, changePassword, markAsExperienced } },
+    { 
+      value: { 
+        user, 
+        login, 
+        logout, 
+        isAdmin, 
+        isAsignador,
+        isCalificador,
+        isUsuario,
+        loading, 
+        updateUserProfile, 
+        changePassword, 
+        markAsExperienced 
+      } 
+    },
     children
   );
 };

@@ -8,7 +8,7 @@ import { navItems } from '@/config/site';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LogOut } from 'lucide-react';
-import { Logo } from './Logo';
+import Image from 'next/image';
 import {
   Sidebar,
   SidebarHeader,
@@ -30,9 +30,27 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        {/* El logo se centra ya que el botón de toggle ahora está en AppHeader */}
         <div className="flex items-center justify-center h-8"> 
-          <Logo iconOnly={sidebarState === 'collapsed'} />
+          {sidebarState === 'collapsed' ? (
+            <div className="h-6 w-6 md:h-8 md:w-8 relative flex-shrink-0">
+              <Image
+                src="/Img/unmsm.svg"
+                alt="Logo UNMSM"
+                width={32}
+                height={32}
+                className="h-full w-full object-contain"
+              />
+            </div>
+          ) : (
+            <div className="text-center space-y-1">
+              <h2 className="text-sm md:text-base font-bold text-primary leading-tight">
+                Sistema Web de
+              </h2>
+              <h3 className="text-xs md:text-sm font-medium text-muted-foreground leading-tight">
+                Balanced Scorecard
+              </h3>
+            </div>
+          )}
         </div>
       </SidebarHeader>
 
@@ -40,6 +58,67 @@ export function AppSidebar() {
         <ScrollArea className="h-full p-2">
           <SidebarMenu>
             {navItems.map((item) => {
+              // Para asignadores, mostrar Dashboard, Mis asignaciones y Asignar Indicadores
+              if (user?.role === 'asignador') {
+                if (item.title === 'Gestión de Usuarios' || item.title === 'Calificación') {
+                  return null;
+                }
+                // Permitir que los asignadores vean "Asignar Indicadores"
+                if (item.title === 'Asignar Indicadores') {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <Link href={item.href} legacyBehavior passHref>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)}
+                          tooltip={{ children: item.title, side: 'right', align: 'center' }}
+                          className={cn(
+                            "w-full justify-start transition-all duration-200 hover:bg-muted/50",
+                            (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)) && "bg-primary/10 text-primary border-l-2 border-primary"
+                          )}
+                        >
+                          <a>
+                            <item.icon className="h-5 w-5 flex-shrink-0" />
+                            <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
+                          </a>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  );
+                }
+              }
+              
+              // Para calificadores, mostrar Dashboard y Calificación, NO Mis asignaciones
+              if (user?.role === 'calificador') {
+                if (item.title === 'Mis asignaciones' || item.title === 'Asignar Indicadores' || item.title === 'Gestión de Usuarios') {
+                  return null;
+                }
+                // Permitir que los calificadores vean "Calificación"
+                if (item.title === 'Calificación') {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <Link href={item.href} legacyBehavior passHref>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)}
+                          tooltip={{ children: item.title, side: 'right', align: 'center' }}
+                          className={cn(
+                            "w-full justify-start transition-all duration-200 hover:bg-muted/50",
+                            (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)) && "bg-primary/10 text-primary border-l-2 border-primary"
+                          )}
+                        >
+                          <a>
+                            <item.icon className="h-5 w-5 flex-shrink-0" />
+                            <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
+                          </a>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  );
+                }
+              }
+              
+              // Para admins, mostrar todo
               if (item.adminOnly && !isAdmin) {
                 return null;
               }
@@ -51,10 +130,13 @@ export function AppSidebar() {
                       asChild
                       isActive={isActive}
                       tooltip={{ children: item.title, side: 'right', align: 'center' }}
-                      className="w-full justify-start"
+                      className={cn(
+                        "w-full justify-start transition-all duration-200 hover:bg-muted/50",
+                        isActive && "bg-primary/10 text-primary border-l-2 border-primary"
+                      )}
                     >
                       <a>
-                        <item.icon className="h-5 w-5" />
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
                         <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
                       </a>
                     </SidebarMenuButton>

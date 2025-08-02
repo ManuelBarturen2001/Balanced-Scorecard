@@ -1,4 +1,4 @@
-# **App Name**: GoalTracker
+# **App Name**: Sistema Balanced Scorecard
 
 ## Core Features:
 
@@ -9,9 +9,9 @@
 
 ## Style Guidelines:
 
-- Primary color: Dark blue (#3F51B5) for a sense of trust and institutional stability.
-- Background color: Very light blue (#E8EAF6), almost white.
-- Accent color: Deep orange (#FF5722) for attention and highlights.
+- Primary color: Rojo UNMSM (#70191C) para representar la identidad de la Universidad Nacional Mayor de San Marcos.
+- Background color: Blanco puro (#FFFFFF) para un diseño limpio y profesional.
+- Accent color: Rojo más claro para acentos y highlights.
 - Body font: 'Inter' sans-serif, modern and neutral, for good readability in data and long text.
 - Headline font: 'Space Grotesk' sans-serif, more techy feel, suitable for headers, with body text being 'Inter'.
 - Use clear and professional icons representing indicators, users, and perspectives. Simple, flat design.

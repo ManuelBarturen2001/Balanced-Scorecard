@@ -1,182 +1,469 @@
 "use client";
 
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Upload, FileText, CheckCircle, Clock, AlertCircle, Users, Filter, Search, Calendar, Award, TrendingUp } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AssignmentCard } from '@/components/my-assignments/AssignmentCard';
 import { AssignmentDetailsModal } from '@/components/my-assignments/AssignmentDetailsModal';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { getIndicatorById } from '@/lib/data';
+import { UserAssignmentCard } from '@/components/my-assignments/UserAssignmentCard';
 import { getCollectionWhereCondition } from '@/lib/firebase-functions';
-import type { AssignedIndicator, MockFile } from '@/lib/types';
-import { ClipboardList, Info } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { getAllAssignedIndicators, getAllUsers, getAllFaculties } from '@/lib/data';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { AssignedIndicator, User, Faculty } from '@/lib/types';
+
+const statusColors = {
+  Pending: 'bg-yellow-100 text-yellow-800',
+  Submitted: 'bg-blue-100 text-blue-800',
+  Approved: 'bg-green-100 text-green-800',
+  Rejected: 'bg-red-100 text-red-800',
+  Overdue: 'bg-orange-100 text-orange-800',
+};
+
+const statusTranslations = {
+  Pending: 'Pendiente',
+  Submitted: 'Presentado',
+  Approved: 'Aprobado',
+  Rejected: 'Rechazado',
+  Overdue: 'Vencido',
+};
 
 export default function MyAssignmentsPage() {
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
-  const [userIndicators, setUserIndicators] = useState<AssignedIndicator[]>([]);
+  const { user, loading: authLoading, isAsignador } = useAuth();
+  const [userAssignments, setUserAssignments] = useState<AssignedIndicator[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedAssignment, setSelectedAssignment] = useState<AssignedIndicator | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedIndicator, setSelectedIndicator] = useState<AssignedIndicator | null>(null);
+  
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('recent');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!authLoading && user) {
         try {
-          const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user.id);
-          setUserIndicators(allAssignedIndicators as AssignedIndicator[]);
+          if (isAsignador) {
+            // Para asignadores: obtener todas las asignaciones
+            const [allAssignments, allUsersData, facultiesData] = await Promise.all([
+              getAllAssignedIndicators(),
+              getAllUsers(),
+              getAllFaculties()
+            ]);
+            setUserAssignments(allAssignments);
+            setAllUsers(allUsersData);
+            setFaculties(facultiesData);
+          } else {
+            // Para usuarios normales: obtener solo sus asignaciones
+            const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user.id);
+            console.log('Fetched assignments:', allAssignedIndicators);
+            if (allAssignedIndicators) {
+              setUserAssignments(allAssignedIndicators as AssignedIndicator[]);
+            }
+          }
         } catch (error) {
-          console.error('Error fetching assigned indicators:', error);
-          setUserIndicators([]);
+          console.error('Error fetching assignments:', error);
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       } else if (!authLoading && !user) {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [user, authLoading]);
+  }, [user, authLoading, isAsignador]);
 
-  const handleViewDetails = useCallback((indicator: AssignedIndicator) => {
-    setSelectedIndicator(indicator);
-    setIsModalOpen(true);
-  }, []);
+  // Variables para estadísticas (opcional, se pueden usar en el futuro)
+  const completedAssignments = userAssignments.filter(assignment => 
+    assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
+  );
+  
+  const pendingAssignments = userAssignments.filter(assignment => 
+    assignment.overallStatus === 'Pending' || assignment.overallStatus === 'Submitted'
+  );
 
-  const handleFileUpload = useCallback(async (assignedIndicatorId: string, verificationMethodName: string, file: File) => {
-    setUserIndicators(prevIndicators =>
-      prevIndicators.map(ind => {
-        if (ind.id === assignedIndicatorId) {
-          return {
-            ...ind,
-            assignedVerificationMethods: ind.assignedVerificationMethods.map(vm => {
-              if (vm.name === verificationMethodName) {
-                const newFile: MockFile = {
-                    name: file.name,
-                    url: '#mock-url', 
-                    uploadedAt: new Date(),
-                    size: file.size,
-                    type: file.type,
-                };
-                return { ...vm, submittedFile: newFile, status: 'Submitted' as const };
-              }
-              return vm;
-            }),
-             overallStatus: ind.assignedVerificationMethods.every(vm => vm.status === 'Approved' || (vm.name === verificationMethodName && file)) ? 'Submitted' : ind.overallStatus,
-          };
-        }
-        return ind;
-      })
-    );
+  // Funciones para asignadores
+  const getStudentName = (userId: string) => {
+    const student = allUsers.find(u => u.id === userId);
+    return student?.name || 'Usuario desconocido';
+  };
 
-    try {
-      const indicator = await getIndicatorById(userIndicators.find(i => i.id === assignedIndicatorId)?.indicatorId || '');
-      const methodName = verificationMethodName;
+  const getFacultyName = (userId: string) => {
+    const student = allUsers.find(u => u.id === userId);
+    if (!student?.facultyId) return 'Sin facultad';
+    
+    const faculty = faculties.find(f => f.id === student.facultyId);
+    return faculty?.name || 'Sin facultad';
+  };
 
-      toast({
-        title: "Archivo Subido (Simulado)",
-        description: `El archivo "${file.name}" para "${methodName}" en el indicador "${indicator?.name}" ha sido subido teóricamente. Los cambios no persisten en esta demostración.`,
-      });
-    } catch (error) {
-      console.error('Error getting indicator details:', error);
-      toast({
-        title: "Archivo Subido (Simulado)",
-        description: `El archivo "${file.name}" ha sido subido teóricamente. Los cambios no persisten en esta demostración.`,
+  // Filtrar asignaciones para asignadores
+  const getFilteredAssignments = () => {
+    if (!isAsignador) return userAssignments;
+    
+    let filtered = userAssignments;
+    
+    // Filtro por búsqueda
+    if (searchTerm) {
+      filtered = filtered.filter(assignment => {
+        const studentName = getStudentName(assignment.userId);
+        return studentName.toLowerCase().includes(searchTerm.toLowerCase());
       });
     }
-  }, [toast, userIndicators]);
+    
+    // Filtro por facultad
+    if (selectedFaculty !== 'all') {
+      filtered = filtered.filter(assignment => {
+        const student = allUsers.find(u => u.id === assignment.userId);
+        return student?.facultyId === selectedFaculty;
+      });
+    }
+    
+    // Filtro por estado
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(assignment => 
+        assignment.overallStatus === selectedStatus
+      );
+    }
+    
+    // Filtro por fecha
+    if (dateFilter !== 'recent') {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      filtered = filtered.filter(assignment => {
+        let assignmentDate: Date;
+        if (assignment.assignedDate && typeof assignment.assignedDate === 'object' && 'seconds' in assignment.assignedDate) {
+          const timestamp = assignment.assignedDate as { seconds: number };
+          assignmentDate = new Date(timestamp.seconds * 1000);
+        } else {
+          assignmentDate = new Date(assignment.assignedDate);
+        }
+        
+        switch (dateFilter) {
+          case 'oldest':
+            return true; // Se ordenará después
+          case 'this-month':
+            return assignmentDate.getMonth() === currentMonth && assignmentDate.getFullYear() === currentYear;
+          case 'last-month':
+            const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+            return assignmentDate.getMonth() === lastMonth && assignmentDate.getFullYear() === lastMonthYear;
+          case 'this-year':
+            return assignmentDate.getFullYear() === currentYear;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Ordenar por fecha
+    filtered.sort((a, b) => {
+      let dateA: Date, dateB: Date;
+      
+      if (a.assignedDate && typeof a.assignedDate === 'object' && 'seconds' in a.assignedDate) {
+        const timestampA = a.assignedDate as { seconds: number };
+        dateA = new Date(timestampA.seconds * 1000);
+      } else {
+        dateA = new Date(a.assignedDate);
+      }
+      
+      if (b.assignedDate && typeof b.assignedDate === 'object' && 'seconds' in b.assignedDate) {
+        const timestampB = b.assignedDate as { seconds: number };
+        dateB = new Date(timestampB.seconds * 1000);
+      } else {
+        dateB = new Date(b.assignedDate);
+      }
+      
+      return dateFilter === 'oldest' 
+        ? dateA.getTime() - dateB.getTime()
+        : dateB.getTime() - dateA.getTime();
+    });
+    
+    return filtered;
+  };
+
+  const filteredAssignments = getFilteredAssignments();
 
 
-  if (isLoading || authLoading) {
+
+  if (authLoading || isLoading) {
     return (
-      <div className="container mx-auto py-1 md:py-2 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <ClipboardList className="h-7 w-7 mr-3 text-primary" />
-            <Skeleton className="h-8 w-48 rounded-md" />
-          </div>
-        </div>
-        <Skeleton className="h-4 w-3/4 rounded-md mb-6" />
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <Card key={i} className="shadow-sm">
-              <CardHeader>
-                <Skeleton className="h-6 w-3/5 rounded-md" />
-                <Skeleton className="h-4 w-2/5 rounded-md mt-1" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-full rounded-md mb-2" />
-                <Skeleton className="h-4 w-3/4 rounded-md" />
-                <div className="mt-4 flex justify-end">
-                  <Skeleton className="h-10 w-24 rounded-md" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="space-y-6 container mx-auto py-2">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-2/5 rounded-md" />
+            <Skeleton className="h-4 w-4/5 rounded-md mt-2" />
+          </CardHeader>
+          <CardContent className="p-0 md:p-2">
+            <div className="space-y-2 p-4">
+              <Skeleton className="h-16 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!user) {
     return (
-       <Card className="m-auto mt-10 max-w-lg shadow-lg">
-        <CardHeader className="items-center text-center">
-            <Info className="h-16 w-16 text-primary mb-4" />
-          <CardTitle className="font-headline text-2xl">Por favor, Inicia Sesión</CardTitle>
-          <CardDescription>Necesitas iniciar sesión para ver tus asignaciones.</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <Button onClick={() => window.location.href = '/login'}>Ir a Iniciar Sesión</Button>
-        </CardContent>
-      </Card>
-    )
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Acceso Denegado</h3>
+              <p className="text-muted-foreground">Debes iniciar sesión para ver tus asignaciones.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto py-1 md:py-2 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-            <h1 className="text-2xl md:text-3xl font-headline font-bold flex items-center">
-                <ClipboardList className="mr-3 h-7 w-7 text-primary" />
-                Mis Asignaciones
+    <div className="container mx-auto py-6">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {isAsignador ? 'Mis Asignaciones Creadas' : 'Mis Asignaciones'}
             </h1>
-            <p className="text-muted-foreground mt-1">
-                Visualiza y gestiona tus indicadores asignados y la carga de archivos de verificación.
+            <p className="text-muted-foreground">
+              {isAsignador 
+                ? 'Aquí puedes ver todas las asignaciones que has creado'
+                : 'Aquí puedes ver las asignaciones que te han hecho'
+              }
             </p>
-        </div>
-      </div>
-
-      {userIndicators.length === 0 ? (
-        <Card className="shadow-lg border-border">
-          <CardHeader>
-            <CardTitle className="font-headline text-xl flex items-center"><Info className="mr-2 h-5 w-5 text-primary"/>Sin Asignaciones</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center py-10">
-            <p className="text-muted-foreground">Actualmente no tienes indicadores asignados.</p>
-            <Button variant="link" className="mt-2" onClick={() => window.location.href = '/assign-indicators'}>Asignar Nuevo Indicador</Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid">
-          {userIndicators.map((indicator,i) => 
-            <AssignmentCard
-              key={i}
-              assignedIndicator={indicator}
-              onViewDetails={handleViewDetails}
-              onFileUpload={handleFileUpload}
-            />
+          </div>
+          {isAsignador && (
+            <Button onClick={() => window.location.href = '/assign-indicators'}>
+              <Users className="h-4 w-4 mr-2" />
+              Crear Nueva Asignación
+            </Button>
           )}
         </div>
-      )}
 
-      {selectedIndicator && (
+        {/* Filtros */}
+        {isAsignador && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filtros de Búsqueda
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Búsqueda por texto */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Buscar</label>
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Filtro por facultad */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Facultad</label>
+                  <Select value={selectedFaculty} onValueChange={setSelectedFaculty}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las facultades" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las facultades</SelectItem>
+                      {faculties.map((faculty) => (
+                        <SelectItem key={faculty.id} value={faculty.id}>
+                          {faculty.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro por estado */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Estado</label>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los estados" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los estados</SelectItem>
+                      <SelectItem value="Pending">Pendiente</SelectItem>
+                      <SelectItem value="Submitted">Presentado</SelectItem>
+                      <SelectItem value="Approved">Aprobado</SelectItem>
+                      <SelectItem value="Rejected">Rechazado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro por fecha */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Ordenar por fecha</label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Más recientes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recent">Más recientes</SelectItem>
+                      <SelectItem value="oldest">Más antiguos</SelectItem>
+                      <SelectItem value="this-month">Este mes</SelectItem>
+                      <SelectItem value="last-month">Mes pasado</SelectItem>
+                      <SelectItem value="this-year">Este año</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center justify-between mt-4">
+                <span className="text-sm text-muted-foreground">
+                  {filteredAssignments.length} asignaciones encontradas
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedFaculty('all');
+                    setSelectedStatus('all');
+                    setDateFilter('recent');
+                  }}
+                >
+                  Limpiar filtros
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Lista de asignaciones */}
+        <Card>
+          {isAsignador && (
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Asignaciones Creadas
+              </CardTitle>
+            </CardHeader>
+          )}
+          <br />
+          <CardContent>
+            {filteredAssignments.length > 0 ? (
+              <div className="space-y-4">
+                {filteredAssignments.map((assignment) => {
+                  if (isAsignador) {
+                    return (
+                      <AssignmentCard
+                        key={assignment.id}
+                        assignedIndicator={assignment}
+                        onViewDetails={() => {
+                          setSelectedAssignment(assignment);
+                          setIsModalOpen(true);
+                        }}
+                        onFileUpload={() => {
+                          // Función para subir archivos (implementar después)
+                          console.log('Upload file functionality');
+                        }}
+                        userId={user?.id || ''}
+                        isAsignador={isAsignador}
+                        getStudentName={getStudentName}
+                        getFacultyName={getFacultyName}
+                      />
+                    );
+                  } else {
+                    return (
+                      <UserAssignmentCard
+                        key={assignment.id}
+                        assignedIndicator={assignment}
+                        onViewDetails={() => {
+                          setSelectedAssignment(assignment);
+                          setIsModalOpen(true);
+                        }}
+                        onFileUpload={async (assignedIndicatorId: string, verificationMethodName: string, file: File) => {
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('assignedIndicatorId', assignedIndicatorId);
+                            formData.append('verificationMethodName', verificationMethodName);
+                            formData.append('userId', user?.id || '');
+                            
+                            const response = await fetch('/api/upload', {
+                              method: 'POST',
+                              body: formData,
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error('Error al subir el archivo');
+                            }
+                            
+                            // Recargar las asignaciones
+                            const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user?.id || '');
+                            if (allAssignedIndicators) {
+                              setUserAssignments(allAssignedIndicators as AssignedIndicator[]);
+                            }
+                          } catch (error) {
+                            console.error('Error uploading file:', error);
+                            throw error;
+                          }
+                        }}
+                      />
+                    );
+                  }
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {isAsignador ? (
+                  <>
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">No has creado asignaciones</h3>
+                    <p>Cuando crees asignaciones de indicadores, aparecerán aquí.</p>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">No tienes asignaciones</h3>
+                    <p>Cuando se te asignen indicadores, aparecerán aquí.</p>
+                  </>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Modal de detalles */}
+      {selectedAssignment && (
         <AssignmentDetailsModal
-          indicator={selectedIndicator}
+          indicator={selectedAssignment}
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedAssignment(null);
+          }}
+
         />
       )}
     </div>

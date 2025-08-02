@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Save, UserPlus } from "lucide-react";
 import { createUser, getAllFaculties, getProfessionalSchoolsByFaculty } from "@/lib/data";
-import type { UserRole, Faculty, ProfessionalSchool } from "@/lib/types";
+import type { UserRole, RoleType, Faculty, ProfessionalSchool } from "@/lib/types";
 
 export default function CreateUserPage() {
   const router = useRouter();
@@ -22,12 +23,22 @@ export default function CreateUserPage() {
   const [avatar, setAvatar] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("user");
+  const [role, setRole] = useState<UserRole>("usuario");
+  const [roleType, setRoleType] = useState<RoleType>("variante");
+  const [availableRoles, setAvailableRoles] = useState<UserRole[]>(["usuario"]);
   const [facultyId, setFacultyId] = useState("");
   const [professionalSchoolId, setProfessionalSchoolId] = useState("");
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Configuración de roles según el tipo
+  const roleConfig = {
+    usuario: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
+    calificador: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
+    asignador: { type: 'unico' as RoleType, availableRoles: ['asignador'] },
+    admin: { type: 'unico' as RoleType, availableRoles: ['admin'] }
+  };
 
   useEffect(() => {
     const loadFaculties = async () => {
@@ -57,6 +68,13 @@ export default function CreateUserPage() {
       setProfessionalSchoolId('');
     }
   }, [facultyId]);
+
+  // Actualizar configuración de roles cuando cambia el rol principal
+  useEffect(() => {
+    const config = roleConfig[role];
+    setRoleType(config.type);
+    setAvailableRoles(config.availableRoles);
+  }, [role]);
 
   const getInitials = (nameStr: string = "") => {
     const names = nameStr.split(" ");
@@ -92,6 +110,8 @@ export default function CreateUserPage() {
         email, 
         avatar, 
         role,
+        roleType,
+        availableRoles,
         facultyId: facultyId || undefined,
         professionalSchoolId: professionalSchoolId || undefined,
       }, password);
@@ -101,20 +121,10 @@ export default function CreateUserPage() {
       });
       router.push("/admin/users");
     } catch (error: any) {
-      let errorMessage = "No se pudo crear el usuario. Inténtalo de nuevo.";
-      
-      // Manejar errores específicos de Firebase Auth
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "El correo electrónico ya está en uso.";
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = "La contraseña debe tener al menos 6 caracteres.";
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "El correo electrónico no es válido.";
-      }
-      
+      console.error('Error creating user:', error);
       toast({
-        title: "Error al crear usuario",
-        description: errorMessage,
+        title: "Error",
+        description: error.message || "Error al crear el usuario.",
         variant: "destructive",
       });
     } finally {
@@ -123,146 +133,235 @@ export default function CreateUserPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 md:py-10">
-      <Card className="max-w-xl mx-auto shadow-lg">
-        <form onSubmit={handleSubmit}>
-          <CardHeader className="items-center text-center">
-            <Avatar className="h-28 w-28 mb-4 border-2 border-primary shadow-md">
-              <AvatarImage src={avatar || undefined} alt={name} />
-              <AvatarFallback className="text-4xl">{getInitials(name)}</AvatarFallback>
-            </Avatar>
-            <CardTitle className="text-3xl font-headline flex items-center justify-center">
-              <UserPlus className="mr-3 h-8 w-8 text-primary" />
+    <div className="container mx-auto py-6">
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
               Crear Nuevo Usuario
             </CardTitle>
-            <CardDescription>Completa la información para crear un nuevo usuario.</CardDescription>
+            <CardDescription>
+              Complete la información del nuevo usuario del sistema.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="user-name">Nombre Completo</Label>
-              <Input
-                id="user-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isSaving}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-email">Correo Electrónico</Label>
-              <Input
-                id="user-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSaving}
-                required
-                className={email && !isValidEmail(email) ? "border-red-500" : ""}
-              />
-              {email && !isValidEmail(email) && (
-                <p className="text-xs text-red-500">Ingresa un correo electrónico válido.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-password">Contraseña</Label>
-              <Input
-                id="user-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSaving}
-                required
-                className={password && !isValidPassword(password) ? "border-red-500" : ""}
-              />
-              {password && !isValidPassword(password) && (
-                <p className="text-xs text-red-500">La contraseña debe tener al menos 6 caracteres.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-confirm-password">Confirmar Contraseña</Label>
-              <Input
-                id="user-confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={isSaving}
-                required
-                className={confirmPassword && !passwordsMatch ? "border-red-500" : ""}
-              />
-              {confirmPassword && !passwordsMatch && (
-                <p className="text-xs text-red-500">Las contraseñas no coinciden.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-avatar">URL del Avatar (opcional)</Label>
-              <Input
-                id="user-avatar"
-                value={avatar}
-                placeholder="https://placehold.co/128x128.png"
-                onChange={(e) => setAvatar(e.target.value)}
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Usa una URL de imagen completa. Por ejemplo: <code>https://placehold.co/128x128.png</code>
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-faculty">Facultad</Label>
-              <Select value={facultyId} onValueChange={setFacultyId} disabled={isSaving}>
-                <SelectTrigger id="user-faculty">
-                  <SelectValue placeholder="Selecciona una facultad" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sin facultad">Sin facultad</SelectItem>
-                  {faculties.map((faculty) => (
-                    <SelectItem key={faculty.id} value={faculty.id}>
-                      {faculty.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-professional-school">Escuela Profesional</Label>
-              <Select 
-                value={professionalSchoolId} 
-                onValueChange={setProfessionalSchoolId} 
-                disabled={isSaving || !facultyId}
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-6">
+              {/* Información básica */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información Personal</h3>
+                
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={avatar} />
+                    <AvatarFallback>{getInitials(name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="name">Nombre completo *</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ingrese el nombre completo"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo electrónico *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="usuario@ejemplo.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="avatar">URL del avatar (opcional)</Label>
+                    <Input
+                      id="avatar"
+                      value={avatar}
+                      onChange={(e) => setAvatar(e.target.value)}
+                      placeholder="https://ejemplo.com/avatar.jpg"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Configuración de roles */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Configuración de Roles</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Rol Principal *</Label>
+                    <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un rol" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="usuario">Usuario (Rol Variante)</SelectItem>
+                        <SelectItem value="calificador">Calificador (Rol Variante)</SelectItem>
+                        <SelectItem value="asignador">Asignador (Rol Único)</SelectItem>
+                        <SelectItem value="admin">Administrador (Rol Único)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Tipo de Rol</Label>
+                    <div className="p-3 border rounded-md bg-muted">
+                      <span className="text-sm font-medium">
+                        {roleType === 'variante' ? 'Rol Variante' : 'Rol Único'}
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {roleType === 'variante' 
+                          ? 'Puede cambiar entre roles disponibles' 
+                          : 'Rol fijo, no puede cambiar'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {roleType === 'variante' && (
+                  <div className="space-y-2">
+                    <Label>Roles Disponibles</Label>
+                    <div className="space-y-2">
+                      {availableRoles.map((availableRole) => (
+                        <div key={availableRole} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={availableRole} 
+                            checked={availableRoles.includes(availableRole)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setAvailableRoles(prev => [...prev, availableRole]);
+                              } else {
+                                setAvailableRoles(prev => prev.filter(r => r !== availableRole));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={availableRole} className="text-sm">
+                            {availableRole === 'usuario' && 'Usuario'}
+                            {availableRole === 'calificador' && 'Calificador'}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Información académica */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información Académica</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="faculty">Facultad</Label>
+                    <Select value={facultyId} onValueChange={setFacultyId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione una facultad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {faculties.map((faculty) => (
+                          <SelectItem key={faculty.id} value={faculty.id}>
+                            {faculty.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="professionalSchool">Escuela Profesional</Label>
+                    <Select 
+                      value={professionalSchoolId} 
+                      onValueChange={setProfessionalSchoolId}
+                      disabled={!facultyId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {professionalSchools.map((school) => (
+                          <SelectItem key={school.id} value={school.id}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contraseña */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Seguridad</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repita la contraseña"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {password && !isValidPassword(password) && (
+                  <p className="text-sm text-red-600">
+                    La contraseña debe tener al menos 6 caracteres.
+                  </p>
+                )}
+
+                {confirmPassword && !passwordsMatch && (
+                  <p className="text-sm text-red-600">
+                    Las contraseñas no coinciden.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
               >
-                <SelectTrigger id="user-professional-school">
-                  <SelectValue placeholder={facultyId ? "Selecciona una escuela profesional" : "Primero selecciona una facultad"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sin escuela profesional">Sin escuela profesional</SelectItem>
-                  {professionalSchools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>
-                      {school.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-role">Rol</Label>
-              <Select value={role} onValueChange={(value) => setRole(value as UserRole)} disabled={isSaving}>
-                <SelectTrigger id="user-role">
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Usuario</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" disabled={isSaving || !isFormValid}>
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Guardando..." : "Crear Usuario"}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={!isFormValid || isSaving}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Creando..." : "Crear Usuario"}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }

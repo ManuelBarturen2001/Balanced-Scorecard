@@ -1,137 +1,214 @@
 "use client";
 
-import { AdminGradingTable } from '@/components/admin/grading/AdminGradingTable';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { indicators as allIndicators, assignedIndicators as initialAssignedIndicators, users } from '@/lib/data';
-import type { AssignedIndicator, AssignedVerificationMethod, VerificationStatus } from '@/lib/types';
-import { ClipboardCheck, ShieldAlert } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { FileCheck, CheckCircle, Clock, AlertCircle, Star } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AdminGradingTable } from '@/components/admin/grading/AdminGradingTable';
+import { getCollection } from '@/lib/firebase-functions';
+import type { AssignedIndicator } from '@/lib/types';
 
-export default function AdminGradingPage() {
-  const { isAdmin, loading: authLoading, user } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
+export default function GradingPage() {
+  const { user, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const [assignmentsToGrade, setAssignmentsToGrade] = useState<AssignedIndicator[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const [currentAssignments, setCurrentAssignments] = useState<AssignedIndicator[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  // Obtener el ID de la asignación desde los parámetros de la URL
+  const assignmentId = searchParams.get('assignment');
 
   useEffect(() => {
-    // Deep copy to allow modifications
-    setCurrentAssignments(JSON.parse(JSON.stringify(initialAssignedIndicators)));
-  }, []);
-
-  useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      router.replace('/dashboard'); 
-    }
-  }, [isAdmin, authLoading, router]);
-
-  const calculateOverallStatus = (methods: AssignedVerificationMethod[]): VerificationStatus => {
-    if (methods.length === 0) return 'Pending';
-    
-    const statuses = methods.map(m => m.status);
-
-    if (statuses.some(s => s === 'Rejected')) return 'Rejected';
-    if (statuses.every(s => s === 'Approved')) return 'Approved';
-    if (statuses.some(s => s === 'Submitted')) return 'Submitted';
-    // If some are Approved and others Pending/Overdue, could be 'In Progress'
-    // For now, if not all approved, not rejected, and at least one submitted, it's 'Submitted'.
-    // Otherwise, it's 'Pending'.
-    const hasPendingOrOverdue = statuses.some(s => s === 'Pending' || s === 'Overdue');
-    if (hasPendingOrOverdue && !statuses.some(s => s === 'Submitted')) return 'Pending';
-
-    return 'Pending'; // Default fallback
-  };
-
-  const handleGradingUpdate = useCallback((assignmentId: string, updatedMethods: AssignedVerificationMethod[]) => {
-    setCurrentAssignments(prevAssignments =>
-      prevAssignments.map(asm => {
-        if (asm.id === assignmentId) {
-          const newOverallStatus = calculateOverallStatus(updatedMethods);
-          return { 
-            ...asm, 
-            assignedVerificationMethods: updatedMethods,
-            overallStatus: newOverallStatus 
-          };
+    const fetchData = async () => {
+      if (!authLoading && user) {
+        try {
+          // Obtener todas las asignaciones que necesitan calificación
+          const allAssignments = await getCollection<AssignedIndicator>('assigned_indicator');
+          
+          console.log('All assignments:', allAssignments);
+          console.log('User ID:', user?.id);
+          console.log('User role:', user?.role);
+          
+          // Filtrar asignaciones donde el calificador actual es parte del jurado
+          // Y que tienen archivos subidos y necesitan calificación
+          const assignmentsWithFiles = allAssignments.filter(assignment => 
+            assignment.jury?.includes(user?.id || '')
+          );
+          
+          console.log('Filtered assignments:', assignmentsWithFiles);
+          console.log('Assignments with jury:', allAssignments.filter(assignment => 
+            assignment.jury?.includes(user?.id || '')
+          ));
+          
+          setAssignmentsToGrade(assignmentsWithFiles);
+        } catch (error) {
+          console.error('Error fetching grading data:', error);
+        } finally {
+          setIsLoading(false);
         }
-        return asm;
-      })
-    );
-    toast({
-        title: "Calificación Guardada (Mock)",
-        description: "La calificación para la asignación ha sido actualizada. Estos cambios son solo para la demostración."
-    });
-  }, [toast]);
+      } else if (!authLoading && !user) {
+        setIsLoading(false);
+      }
+    };
 
-  if (authLoading) {
+    fetchData();
+  }, [user, authLoading]);
+
+  // Calcular estadísticas basadas en asignaciones completas, no métodos individuales
+  const totalEvaluations = assignmentsToGrade.length;
+  
+  // Completadas: asignaciones donde TODOS los métodos están aprobados
+  const completedEvaluations = assignmentsToGrade.filter(assignment => 
+    assignment.assignedVerificationMethods?.every(method => method.status === 'Approved')
+  );
+  
+  // Pendientes: todas las asignaciones que no están completamente aprobadas
+  const pendingEvaluations = assignmentsToGrade.filter(assignment => 
+    !assignment.assignedVerificationMethods?.every(method => method.status === 'Approved')
+  );
+
+  // Calcular progreso basado en asignaciones completadas vs total de asignaciones
+  const totalProgress = totalEvaluations > 0 
+    ? (completedEvaluations.length / totalEvaluations) * 100 
+    : 0;
+
+  if (authLoading || isLoading) {
     return (
       <div className="space-y-6 container mx-auto py-2">
-        <div className="flex justify-between items-start">
-            <div>
-                <Skeleton className="h-8 w-48 rounded-md" />
-                <Skeleton className="h-4 w-64 rounded-md mt-2" />
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-2/5 rounded-md" />
+            <Skeleton className="h-4 w-4/5 rounded-md mt-2" />
+          </CardHeader>
+          <CardContent className="p-0 md:p-2">
+            <div className="space-y-2 p-4">
+              <Skeleton className="h-16 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md" />
             </div>
-        </div>
-        <Skeleton className="h-12 w-full rounded-md mb-4" /> {/* For Search */}
-        <Skeleton className="h-96 w-full rounded-lg" /> 
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (!isAdmin) {
+  if (!user) {
     return (
-      <Card className="m-auto mt-10 max-w-lg shadow-lg">
-        <CardHeader className="items-center text-center">
-            <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
-          <CardTitle className="font-headline text-2xl">Acceso Denegado</CardTitle>
-          <CardDescription>No tienes privilegios de administrador para ver esta página.</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <Button onClick={() => router.push('/dashboard')}>Volver al Dashboard</Button>
-        </CardContent>
-      </Card>
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Acceso Denegado</h3>
+              <p className="text-muted-foreground">Debes iniciar sesión para acceder a la calificación.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
-  
-  const filteredAssignments = currentAssignments.filter(assignment => {
-    const indicator = allIndicators.find(i => i.id === assignment.indicatorId);
-    const user = users.find(u => u.id === assignment.userId);
-    const lowerSearchTerm = searchTerm.toLowerCase();
 
+  // Verificar si el usuario es calificador
+  if (user.role !== 'calificador' && user.role !== 'admin') {
     return (
-        (indicator?.name.toLowerCase().includes(lowerSearchTerm)) ||
-        (user?.name.toLowerCase().includes(lowerSearchTerm)) ||
-        (user?.email.toLowerCase().includes(lowerSearchTerm)) ||
-        (assignment.overallStatus?.toLowerCase().includes(lowerSearchTerm))
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Acceso Restringido</h3>
+              <p className="text-muted-foreground">Solo los calificadores pueden acceder a esta página.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
-  });
-
+  }
 
   return (
-    <div className="container mx-auto py-1 md:py-2 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-            <h1 className="text-2xl md:text-3xl font-headline font-bold flex items-center">
-                <ClipboardCheck className="mr-3 h-7 w-7 text-primary" />
-                Panel de Calificación
-            </h1>
-            <p className="text-muted-foreground mt-1">
-                Revisa y califica las asignaciones de indicadores de los usuarios.
-            </p>
+    <div className="container mx-auto py-6">
+      <div className="space-y-6">
+        {/* Mensaje informativo si se accede con un ID específico */}
+        {assignmentId && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-blue-600" />
+                <p className="text-sm text-blue-800">
+                  Mostrando detalles de la asignación #{assignmentId}. 
+                  Puedes evaluar esta asignación específica o ver todas las evaluaciones pendientes.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Header con estadísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Evaluaciones</CardTitle>
+              <FileCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalEvaluations}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completadas</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{completedEvaluations.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+              <Clock className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{pendingEvaluations.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Progreso</CardTitle>
+              <Star className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{Math.round(totalProgress)}%</div>
+              <Progress value={totalProgress} className="mt-2" />
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Tabla de calificación */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5" />
+              Evaluaciones Pendientes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AdminGradingTable 
+              onAssignmentUpdate={() => {}} // Función vacía por ahora
+              searchTerm=""
+              onSearchTermChange={() => {}}
+              currentUser={user}
+            />
+          </CardContent>
+        </Card>
       </div>
-      
-      <AdminGradingTable 
-        onAssignmentUpdate={handleGradingUpdate}
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        currentUser={user}
-      />
     </div>
   );
 }

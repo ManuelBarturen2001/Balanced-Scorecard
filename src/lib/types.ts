@@ -1,16 +1,51 @@
 import type { LucideIcon } from 'lucide-react';
 
-export type UserRole = 'admin' | 'user';
+// Nuevo sistema de roles
+export type UserRole = 'usuario' | 'calificador' | 'asignador' | 'admin';
+export type RoleType = 'variante' | 'unico';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  avatar?: string; // URL to avatar image
-  isFirstLogin?: boolean; // Optional, used to track first login
-  facultyId?: string; // Nueva propiedad para facultad
-  professionalSchoolId?: string; // Nueva propiedad para escuela profesional
+  roleType: RoleType;
+  avatar?: string;
+  isFirstLogin?: boolean;
+  facultyId?: string;
+  professionalSchoolId?: string;
+  // Para roles variantes, pueden tener múltiples roles
+  availableRoles?: UserRole[];
+  // Para calificadores, especificar en qué facultades puede calificar
+  calificatorFaculties?: string[];
+  // Para asignadores, especificar en qué facultades puede asignar
+  assignerFaculties?: string[];
+  // Notificaciones del usuario
+  notifications?: Notification[];
+  // Estadísticas del usuario
+  stats?: UserStats;
+}
+
+export interface UserStats {
+  totalAssignments?: number;
+  completedAssignments?: number;
+  pendingAssignments?: number;
+  totalEvaluations?: number;
+  completedEvaluations?: number;
+  pendingEvaluations?: number;
+  averageScore?: number;
+  lastActivity?: Date;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  read: boolean;
+  createdAt: Date;
+  actionUrl?: string;
+  priority: 'low' | 'medium' | 'high';
 }
 
 export interface Faculty {
@@ -38,20 +73,22 @@ export interface Perspective {
   icon?: LucideIcon;
 }
 
-// IMPORTANT: These status values are used as keys and in logic.
-// Translation happens at the display layer.
 export type VerificationStatus = 'Pending' | 'Submitted' | 'Approved' | 'Rejected' | 'Overdue';
 
 export interface VerificationMethod {
   name: string;
 }
 
+import type { Timestamp } from 'firebase/firestore';
+
 export interface MockFile {
   name: string;
-  url: string; 
-  uploadedAt?: Date; 
-  size?: number; 
-  type?: string; 
+  url: string;
+  uploadedAt?: Date | Timestamp | number | string | any; // Permitir Date, Timestamp, número, string o cualquier formato
+  size?: number;
+  type?: string;
+  fileName?: string; // Nombre del archivo físico guardado
+  originalName?: string; // Nombre original del archivo
 }
 
 export interface AssignedVerificationMethod {
@@ -59,17 +96,18 @@ export interface AssignedVerificationMethod {
   status: VerificationStatus;
   submittedFile?: MockFile | null;
   notes?: string;
-  dueDate?: Date; 
+  dueDate?: Date;
+  fileHistory?: MockFile[]; // Historial de archivos subidos
 }
 
 export interface AssignedIndicator {
-  id?: string; 
+  id?: string;
   userId: string;
   indicatorId: string;
-  dueDate?:Date;
+  dueDate?: Date;
   perspectiveId: string;
   assignedVerificationMethods: AssignedVerificationMethod[];
-  overallStatus?: VerificationStatus; 
+  overallStatus?: VerificationStatus;
   assignedDate: Date;
   jury: string[];
 }
@@ -82,7 +120,6 @@ export interface NavItemConfig {
   disabled?: boolean;
 }
 
-// Helper for status translations
 export const statusTranslations: Record<VerificationStatus, string> = {
   Pending: "Pendiente",
   Submitted: "Presentado",

@@ -40,7 +40,7 @@ function HomePageContent() {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <p className="text-lg">Cargando GoalTracker...</p>
+      <p className="text-lg">Cargando Sistema Web de Balanced Scorecard...</p>
       {/* You could add a spinner here */}
     </div>
   );

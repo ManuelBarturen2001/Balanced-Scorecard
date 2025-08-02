@@ -8,7 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle, GraduationCap, Shield, BookOpen } from 'lucide-react';
+import Image from 'next/image';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -28,7 +29,7 @@ export function LoginForm() {
       if (success) {
         toast({
           title: "Inicio de Sesión Exitoso",
-          description: "¡Bienvenido/a de nuevo!",
+          description: "¡Bienvenido/a al Sistema Web de Balanced Scorecard!",
         });
         
         // Verificar si es el primer login del usuario
@@ -64,58 +65,118 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-sm shadow-2xl">
-      <CardHeader className="text-center">
-         <div className="mx-auto mb-4 h-16 w-16 relative" data-ai-hint="abstract logo">
-            <svg viewBox="0 0 100 100" fill="currentColor" className="text-primary h-full w-full">
-                <path d="M50,5 A20,20 0 0,0 50,45 A20,20 0 0,0 50,5 M25,25 A20,20 0 0,1 75,25 M25,75 A20,20 0 0,0 75,75 M50,55 A20,20 0 0,1 50,95 A20,20 0 0,1 50,55" stroke="currentColor" strokeWidth="5" fill="none" />
-                <circle cx="50" cy="50" r="10" />
-            </svg>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <div className="mx-auto mb-6 flex items-center justify-center">
+            <Image
+              src="/Img/unmsm.svg"
+              alt="Logo Universidad Nacional Mayor de San Marcos"
+              width={120}
+              height={120}
+              className="w-32 h-32 md:w-48 md:h-48 object-contain"
+              priority
+            />
+          </div>
+          
+          <div className="w-20 md:w-24 h-1 bg-primary mx-auto rounded-full mb-4"></div>
+          
+          <h1 className="text-lg md:text-xl font-bold text-primary mb-6 whitespace-nowrap">
+            Universidad Nacional Mayor de San Marcos
+          </h1>
         </div>
-        <CardTitle className="text-3xl font-headline text-primary">Iniciar Sesión en GoalTracker</CardTitle>
-        <CardDescription>Accede a tu panel de gestión de objetivos institucionales.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="tu@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          {error && (
-            <div className="flex items-center text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              {error}
+
+        <Card className="shadow-2xl border-0 bg-card/95 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-xl md:text-2xl font-headline text-primary">
+              Iniciar Sesión
+            </CardTitle>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Correo Institucional
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="usuario@unmsm.edu.pe"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="pl-10 border-2 focus:border-primary h-11 md:h-12 bg-background"
+                  />
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Contraseña
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="pl-10 border-2 focus:border-primary h-11 md:h-12 bg-background"
+                  />
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              </div>
+              
+              {error && (
+                <div className="flex items-center text-sm text-destructive bg-destructive/10 p-4 rounded-lg border border-destructive/20">
+                  <AlertCircle className="h-4 w-4 mr-3 flex-shrink-0" />
+                  <span className="text-xs md:text-sm">{error}</span>
+                </div>
+              )}
+              
+              <Button 
+                type="submit" 
+                className="w-full h-11 md:h-12 text-sm md:text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200" 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span className="text-xs md:text-sm">Iniciando sesión...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <LogIn className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                    <span className="text-xs md:text-sm">Acceder al Sistema</span>
+                  </div>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+          
+          <CardFooter className="flex flex-col space-y-4 text-center">
+            <div className="w-full pt-4 border-t border-border/30">
+              <div className="flex items-center justify-center space-x-2 text-xs text-muted-foreground">
+                <BookOpen className="h-3 w-3" />
+                <span className="text-xs">Sistema Web de Balanced Scorecard</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                © 2025 Universidad Nacional Mayor de San Marcos
+              </p>
             </div>
-          )}
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-            {!isLoading && <LogIn className="ml-2 h-4 w-4" />}
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="text-center text-sm">
-        <p className="text-muted-foreground">Usa credenciales de prueba como alice@example.com (admin) o bob@example.com (usuario).</p>
-      </CardFooter>
-    </Card>
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
   );
 }

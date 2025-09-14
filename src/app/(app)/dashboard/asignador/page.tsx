@@ -20,8 +20,8 @@ import {
   Filter
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { AssignedIndicator, User } from '@/lib/types';
-import { getAllAssignedIndicators, getAllUsers } from '@/lib/data';
+import { AssignedIndicator, User, Faculty, ProfessionalSchool, Office, Perspective } from '@/lib/types';
+import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllPerspectives } from '@/lib/data';
 
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -43,25 +43,34 @@ export default function AsignadorDashboard() {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<AssignedIndicator[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [perspectives, setPerspectives] = useState<Perspective[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>('');
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [allAssignments, allUsers] = await Promise.all([
+        const [allAssignments, allUsers, facultiesData, schoolsData, officesData, perspectivesData] = await Promise.all([
           getAllAssignedIndicators(),
-          getAllUsers()
+          getAllUsers(),
+          getAllFaculties(),
+          getAllProfessionalSchools(),
+          getAllOffices(),
+          getAllPerspectives()
         ]);
         
-        // Filtrar asignaciones por facultad del asignador
-        const asignadorAssignments = allAssignments.filter(assignment => {
-          // Aquí deberías implementar la lógica para filtrar por facultad del asignador
-          return true; // Por ahora mostramos todas
-        });
+        // Mostrar todas las asignaciones para el asignador
+        const asignadorAssignments = allAssignments;
         
         setAssignments(asignadorAssignments);
         setUsers(allUsers);
+        setFaculties(facultiesData);
+        setProfessionalSchools(schoolsData);
+        setOffices(officesData);
+        setPerspectives(perspectivesData);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -144,16 +153,74 @@ export default function AsignadorDashboard() {
     return student?.name || 'Usuario desconocido';
   };
 
-  const getFacultyName = (facultyId: string) => {
-    // Aquí podrías implementar la lógica para obtener el nombre de la facultad
-    return facultyId || 'Facultad no especificada';
+  const getFacultyName = (userId: string) => {
+    const student = users.find(u => u.id === userId);
+    if (!student?.facultyId) return 'Sin facultad';
+    const faculty = faculties.find(f => f.id === student.facultyId);
+    return faculty?.name || 'Sin facultad';
+  };
+
+  const getSchoolName = (userId: string) => {
+    const student = users.find(u => u.id === userId);
+    if (!student?.professionalSchoolId) return 'Sin escuela';
+    const school = professionalSchools.find(s => s.id === student.professionalSchoolId);
+    return school?.name || 'Sin escuela';
+  };
+
+  const getOfficeName = (userId: string) => {
+    const student = users.find(u => u.id === userId);
+    if (!student?.officeId) return 'Sin oficina';
+    const office = offices.find(o => o.id === student.officeId);
+    return office?.name || 'Sin oficina';
+  };
+
+  const getPerspectiveName = (perspectiveId: string) => {
+    const perspective = perspectives.find(p => p.id === perspectiveId);
+    return perspective?.name || 'Sin perspectiva';
   };
 
   const getJuryNames = (juryIds: string[]) => {
-    return juryIds.map(id => {
-      const juryMember = users.find(u => u.id === id);
-      return juryMember?.name || 'Calificador desconocido';
-    }).join(', ');
+    if (!juryIds.length) return 'Sin jurado asignado';
+    const names = juryIds
+      .map(id => users.find(u => u.id === id)?.name)
+      .filter(Boolean) as string[];
+    return names.length ? names.join(', ') : 'Sin jurado asignado';
+  };
+
+  const formatDueDate = (dueDate: any) => {
+    if (!dueDate) return 'Sin fecha límite';
+    const date = new Date(dueDate);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getLocationInfo = (userId: string) => {
+    const facultyName = getFacultyName(userId);
+    const schoolName = getSchoolName(userId);
+    const officeName = getOfficeName(userId);
+    
+    const hasFaculty = facultyName && !facultyName.includes('Sin facultad');
+    const hasOffice = officeName && !officeName.includes('Sin oficina');
+    
+    if (hasFaculty) {
+      return {
+        type: 'Facultad',
+        value: `${facultyName}${schoolName !== 'Sin escuela' ? ` - ${schoolName}` : ''}`
+      };
+    } else if (hasOffice) {
+      return {
+        type: 'Oficina',
+        value: officeName
+      };
+    } else {
+      return {
+        type: 'Sin asignar',
+        value: 'No asignado'
+      };
+    }
   };
 
   return (
@@ -273,35 +340,40 @@ export default function AsignadorDashboard() {
                   <p>No tienes asignaciones recientes</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {recentAssignments.map((assignment) => (
-                    <div
-                      key={assignment.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Users className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">
-                            {getStudentName(assignment.userId)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Asignación #{assignment.id} • {getFacultyName(assignment.userId)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Jurado: {getJuryNames(assignment.jury || [])}
-                          </p>
+                <div className="space-y-4">
+                  {recentAssignments.map((assignment) => {
+                    const locationInfo = getLocationInfo(assignment.userId);
+                    return (
+                      <div
+                        key={assignment.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <p className="font-medium text-foreground">
+                              {getStudentName(assignment.userId)}
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1 text-sm text-muted-foreground">
+                            <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                            <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
+                            <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
+                            <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge 
+                            className={statusColors[assignment.overallStatus || 'Pending']}
+                          >
+                            {statusTranslations[assignment.overallStatus || 'Pending']}
+                          </Badge>
                         </div>
                       </div>
-                                             <div className="flex items-center gap-2">
-                         <Badge 
-                           className={statusColors[assignment.overallStatus || 'Pending']}
-                         >
-                           {statusTranslations[assignment.overallStatus || 'Pending']}
-                         </Badge>
-                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -334,28 +406,41 @@ export default function AsignadorDashboard() {
                             {dateAssignments.length} asignaciones
                           </Badge>
                         </div>
-                        <div className="space-y-2">
-                          {dateAssignments.map((assignment) => (
-                            <div
-                              key={assignment.id}
-                              className="flex items-center justify-between p-2 border rounded"
-                            >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {getStudentName(assignment.userId)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  #{assignment.id}
-                                </p>
-                              </div>
-                              <Badge 
-                                className={statusColors[assignment.overallStatus || 'Pending']}
-                                variant="outline"
+                        <div className="space-y-3">
+                          {dateAssignments.map((assignment) => {
+                            const locationInfo = getLocationInfo(assignment.userId);
+                            return (
+                              <div
+                                key={assignment.id}
+                                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors"
                               >
-                                {statusTranslations[assignment.overallStatus || 'Pending']}
-                              </Badge>
-                            </div>
-                          ))}
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-muted-foreground" />
+                                    <p className="font-medium text-foreground">
+                                      {getStudentName(assignment.userId)}
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="space-y-1 text-sm text-muted-foreground">
+                                    <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                                    <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
+                                    <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
+                                    <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-col items-end gap-2">
+                                  <Badge 
+                                    className={statusColors[assignment.overallStatus || 'Pending']}
+                                    variant="outline"
+                                  >
+                                    {statusTranslations[assignment.overallStatus || 'Pending']}
+                                  </Badge>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -380,27 +465,40 @@ export default function AsignadorDashboard() {
                   <p>No hay asignaciones activas</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {assignments
                     .filter(assignment => assignment.overallStatus === 'Submitted')
-                    .map((assignment) => (
-                      <div
-                        key={assignment.id}
-                        className="flex items-center justify-between p-3 border border-blue-200 rounded-lg bg-blue-50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Clock className="h-5 w-5 text-blue-600" />
-                                                   <div>
-                           <p className="font-medium">
-                             {getStudentName(assignment.userId)}
-                           </p>
-                           <p className="text-sm text-blue-600">
-                             En evaluación por: {getJuryNames(assignment.jury || [])}
-                           </p>
-                         </div>
-                       </div>
-                      </div>
-                    ))}
+                    .map((assignment) => {
+                      const locationInfo = getLocationInfo(assignment.userId);
+                      return (
+                        <div
+                          key={assignment.id}
+                          className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
+                        >
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-blue-600" />
+                              <p className="font-medium text-foreground">
+                                {getStudentName(assignment.userId)}
+                              </p>
+                            </div>
+                            
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                              <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
+                              <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
+                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge className="bg-blue-100 text-blue-800">
+                              En Evaluación
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </CardContent>
@@ -422,36 +520,51 @@ export default function AsignadorDashboard() {
                   <p>Aún no hay asignaciones completadas</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {assignments
                     .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
-                    .map((assignment) => (
-                      <div
-                        key={assignment.id}
-                        className="flex items-center justify-between p-3 border border-green-200 rounded-lg bg-green-50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <div>
-                            <p className="font-medium">
-                              {getStudentName(assignment.userId)}
-                            </p>
-                            <p className="text-sm text-green-600">
-                              Evaluado por: {getJuryNames(assignment.jury || [])}
-                            </p>
+                    .map((assignment) => {
+                      const locationInfo = getLocationInfo(assignment.userId);
+                      const isApproved = assignment.overallStatus === 'Approved';
+                      return (
+                        <div
+                          key={assignment.id}
+                          className={`flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors ${
+                            isApproved 
+                              ? 'border-green-200 bg-green-50' 
+                              : 'border-red-200 bg-red-50'
+                          }`}
+                        >
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className={`h-4 w-4 ${isApproved ? 'text-green-600' : 'text-red-600'}`} />
+                              <p className="font-medium text-foreground">
+                                {getStudentName(assignment.userId)}
+                              </p>
+                            </div>
+                            
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                              <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
+                              <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
+                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge 
+                              className={
+                                isApproved 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }
+                            >
+                              {isApproved ? 'Aprobada' : 'Rechazada'}
+                            </Badge>
                           </div>
                         </div>
-                        <Badge 
-                          className={
-                            assignment.overallStatus === 'Approved' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }
-                        >
-                          {assignment.overallStatus === 'Approved' ? 'Aprobada' : 'Rechazada'}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               )}
             </CardContent>

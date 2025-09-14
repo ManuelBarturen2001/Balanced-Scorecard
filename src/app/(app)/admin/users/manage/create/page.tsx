@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Save, UserPlus } from "lucide-react";
-import { createUser, getAllFaculties, getProfessionalSchoolsByFaculty } from "@/lib/data";
-import type { UserRole, RoleType, Faculty, ProfessionalSchool } from "@/lib/types";
+import { createUser, getAllFaculties, getProfessionalSchoolsByFaculty, getAllOffices } from "@/lib/data";
+import type { UserRole, RoleType, Faculty, ProfessionalSchool, Office, User } from "@/lib/types";
 
 export default function CreateUserPage() {
   const router = useRouter();
@@ -23,39 +23,51 @@ export default function CreateUserPage() {
   const [avatar, setAvatar] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("usuario");
+  const [role, setRole] = useState<UserRole>("responsable");
   const [roleType, setRoleType] = useState<RoleType>("variante");
-  const [availableRoles, setAvailableRoles] = useState<UserRole[]>(["usuario"]);
+  const [availableRoles, setAvailableRoles] = useState<UserRole[]>(["responsable"]);
   const [facultyId, setFacultyId] = useState("");
   const [professionalSchoolId, setProfessionalSchoolId] = useState("");
+  const [officeId, setOfficeId] = useState("");
+  const [belongsToFaculty, setBelongsToFaculty] = useState(false);
+  const [belongsToOffice, setBelongsToOffice] = useState(false);
+  const [facultyBossName, setFacultyBossName] = useState("");
+  const [facultyBossEmail, setFacultyBossEmail] = useState("");
+  const [officeBossName, setOfficeBossName] = useState("");
+  const [officeBossEmail, setOfficeBossEmail] = useState("");
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Configuración de roles según el tipo
   const roleConfig = {
-    usuario: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
-    calificador: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
+    responsable: { type: 'variante' as RoleType, availableRoles: ['responsable', 'calificador'] },
+    calificador: { type: 'variante' as RoleType, availableRoles: ['responsable', 'calificador'] },
     asignador: { type: 'unico' as RoleType, availableRoles: ['asignador'] },
     admin: { type: 'unico' as RoleType, availableRoles: ['admin'] }
   };
 
   useEffect(() => {
-    const loadFaculties = async () => {
+    const loadData = async () => {
       try {
-        const facultiesData = getAllFaculties();
+        const [facultiesData, officesData] = await Promise.all([
+          getAllFaculties(),
+          getAllOffices()
+        ]);
         setFaculties(facultiesData);
+        setOffices(officesData);
       } catch (error) {
-        console.error('Error loading faculties:', error);
+        console.error('Error loading data:', error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar las facultades.",
+          description: "No se pudieron cargar los datos.",
           variant: "destructive",
         });
       }
     };
 
-    loadFaculties();
+    loadData();
   }, [toast]);
 
   useEffect(() => {
@@ -73,7 +85,7 @@ export default function CreateUserPage() {
   useEffect(() => {
     const config = roleConfig[role];
     setRoleType(config.type);
-    setAvailableRoles(config.availableRoles);
+    setAvailableRoles(config.availableRoles as UserRole[]);
   }, [role]);
 
   const getInitials = (nameStr: string = "") => {
@@ -105,16 +117,43 @@ export default function CreateUserPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await createUser({ 
+      // Construir el objeto de usuario con campos opcionales
+      const userData: Omit<User, 'id'> = {
         name, 
         email, 
         avatar, 
         role,
         roleType,
         availableRoles,
-        facultyId: facultyId || undefined,
-        professionalSchoolId: professionalSchoolId || undefined,
-      }, password);
+      };
+
+      // Agregar campos de facultad solo si pertenece a una facultad
+      if (belongsToFaculty && facultyId) {
+        userData.facultyId = facultyId;
+        if (professionalSchoolId) {
+          userData.professionalSchoolId = professionalSchoolId;
+        }
+        if (facultyBossName) {
+          userData.bossName = facultyBossName;
+        }
+        if (facultyBossEmail) {
+          userData.bossEmail = facultyBossEmail;
+        }
+      }
+
+      // Agregar campos de oficina solo si pertenece a una oficina
+      if (belongsToOffice && officeId) {
+        userData.officeId = officeId;
+        // Si ya tiene jefe de facultad, no sobrescribir
+        if (!userData.bossName && officeBossName) {
+          userData.bossName = officeBossName;
+        }
+        if (!userData.bossEmail && officeBossEmail) {
+          userData.bossEmail = officeBossEmail;
+        }
+      }
+
+      await createUser(userData, password);
       toast({
         title: "Usuario creado",
         description: "El nuevo usuario ha sido creado exitosamente.",
@@ -204,7 +243,7 @@ export default function CreateUserPage() {
                         <SelectValue placeholder="Seleccione un rol" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usuario">Usuario (Rol Variante)</SelectItem>
+                        <SelectItem value="responsable">Responsable (Rol Variante)</SelectItem>
                         <SelectItem value="calificador">Calificador (Rol Variante)</SelectItem>
                         <SelectItem value="asignador">Asignador (Rol Único)</SelectItem>
                         <SelectItem value="admin">Administrador (Rol Único)</SelectItem>
@@ -245,7 +284,7 @@ export default function CreateUserPage() {
                             }}
                           />
                           <Label htmlFor={availableRole} className="text-sm">
-                            {availableRole === 'usuario' && 'Usuario'}
+                          {availableRole === 'responsable' && 'Responsable'}
                             {availableRole === 'calificador' && 'Calificador'}
                           </Label>
                         </div>
@@ -259,44 +298,157 @@ export default function CreateUserPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Información Académica</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="faculty">Facultad</Label>
-                    <Select value={facultyId} onValueChange={setFacultyId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione una facultad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {faculties.map((faculty) => (
-                          <SelectItem key={faculty.id} value={faculty.id}>
-                            {faculty.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="professionalSchool">Escuela Profesional</Label>
-                    <Select 
-                      value={professionalSchoolId} 
-                      onValueChange={setProfessionalSchoolId}
-                      disabled={!facultyId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {professionalSchools.map((school) => (
-                          <SelectItem key={school.id} value={school.id}>
-                            {school.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                {/* Pregunta principal */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">El usuario pertenece a una facultad u oficina?</Label>
+                  <div className="flex space-x-6">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="belongsToFaculty" 
+                        checked={belongsToFaculty}
+                        onCheckedChange={(checked) => {
+                          setBelongsToFaculty(checked as boolean);
+                          if (!checked) {
+                            setFacultyId("");
+                            setProfessionalSchoolId("");
+                            setFacultyBossName("");
+                            setFacultyBossEmail("");
+                          }
+                        }}
+                      />
+                      <Label htmlFor="belongsToFaculty">Facultad</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="belongsToOffice" 
+                        checked={belongsToOffice}
+                        onCheckedChange={(checked) => {
+                          setBelongsToOffice(checked as boolean);
+                          if (!checked) {
+                            setOfficeId("");
+                            setOfficeBossName("");
+                            setOfficeBossEmail("");
+                          }
+                        }}
+                      />
+                      <Label htmlFor="belongsToOffice">Oficina</Label>
+                    </div>
                   </div>
                 </div>
+
+                {/* Campos de Facultad */}
+                {belongsToFaculty && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <h4 className="font-medium text-sm">Información de Facultad</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="faculty">Facultad *</Label>
+                        <Select value={facultyId} onValueChange={setFacultyId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccione una facultad" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {faculties.map((faculty) => (
+                              <SelectItem key={faculty.id} value={faculty.id}>
+                                {faculty.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="professionalSchool">Escuela Profesional</Label>
+                        <Select 
+                          value={professionalSchoolId} 
+                          onValueChange={setProfessionalSchoolId}
+                          disabled={!facultyId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {professionalSchools.map((school) => (
+                              <SelectItem key={school.id} value={school.id}>
+                                {school.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="facultyBossName">Nombre del Jefe de Facultad</Label>
+                        <Input
+                          id="facultyBossName"
+                          value={facultyBossName}
+                          onChange={(e) => setFacultyBossName(e.target.value)}
+                          placeholder="Ingrese el nombre del jefe de facultad"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="facultyBossEmail">Correo del Jefe de Facultad</Label>
+                        <Input
+                          id="facultyBossEmail"
+                          type="email"
+                          value={facultyBossEmail}
+                          onChange={(e) => setFacultyBossEmail(e.target.value)}
+                          placeholder="jefe.facultad@unmsm.edu.pe"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos de Oficina */}
+                {belongsToOffice && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <h4 className="font-medium text-sm">Información de Oficina</h4>
+                    <div className="space-y-2">
+                      <Label htmlFor="office">Oficina *</Label>
+                      <Select value={officeId} onValueChange={setOfficeId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione una oficina" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {offices.map((office) => (
+                            <SelectItem key={office.id} value={office.id}>
+                              {office.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="officeBossName">Nombre del Jefe de Oficina</Label>
+                        <Input
+                          id="officeBossName"
+                          value={officeBossName}
+                          onChange={(e) => setOfficeBossName(e.target.value)}
+                          placeholder="Ingrese el nombre del jefe de oficina"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="officeBossEmail">Correo del Jefe de Oficina</Label>
+                        <Input
+                          id="officeBossEmail"
+                          type="email"
+                          value={officeBossEmail}
+                          onChange={(e) => setOfficeBossEmail(e.target.value)}
+                          placeholder="jefe.oficina@unmsm.edu.pe"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+
 
               {/* Contraseña */}
               <div className="space-y-4">

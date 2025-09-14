@@ -12,11 +12,11 @@ import { AssignmentCard } from '@/components/my-assignments/AssignmentCard';
 import { AssignmentDetailsModal } from '@/components/my-assignments/AssignmentDetailsModal';
 import { UserAssignmentCard } from '@/components/my-assignments/UserAssignmentCard';
 import { getCollectionWhereCondition } from '@/lib/firebase-functions';
-import { getAllAssignedIndicators, getAllUsers, getAllFaculties } from '@/lib/data';
+import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllProfessionalSchools, getAllPerspectives, getAllOffices } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { AssignedIndicator, User, Faculty } from '@/lib/types';
+import type { AssignedIndicator, User, Faculty, ProfessionalSchool, Perspective, Office } from '@/lib/types';
 
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -39,6 +39,9 @@ export default function MyAssignmentsPage() {
   const [userAssignments, setUserAssignments] = useState<AssignedIndicator[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
+  const [perspectives, setPerspectives] = useState<Perspective[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState<AssignedIndicator | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,14 +59,20 @@ export default function MyAssignmentsPage() {
         try {
           if (isAsignador) {
             // Para asignadores: obtener todas las asignaciones
-            const [allAssignments, allUsersData, facultiesData] = await Promise.all([
+            const [allAssignments, allUsersData, facultiesData, schoolsData, perspectivesData, officesData] = await Promise.all([
               getAllAssignedIndicators(),
               getAllUsers(),
-              getAllFaculties()
+              getAllFaculties(),
+              getAllProfessionalSchools(),
+              getAllPerspectives(),
+              getAllOffices()
             ]);
             setUserAssignments(allAssignments);
             setAllUsers(allUsersData);
             setFaculties(facultiesData);
+            setProfessionalSchools(schoolsData);
+            setPerspectives(perspectivesData);
+            setOffices(officesData);
           } else {
             // Para usuarios normales: obtener solo sus asignaciones
             const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user.id);
@@ -106,6 +115,33 @@ export default function MyAssignmentsPage() {
     
     const faculty = faculties.find(f => f.id === student.facultyId);
     return faculty?.name || 'Sin facultad';
+  };
+
+  const getSchoolName = (userId: string) => {
+    const student = allUsers.find(u => u.id === userId);
+    if (!student?.professionalSchoolId) return 'Sin escuela';
+    const school = professionalSchools.find(s => s.id === student.professionalSchoolId);
+    return school?.name || 'Sin escuela';
+  };
+
+  const getOfficeName = (userId: string) => {
+    const student = allUsers.find(u => u.id === userId);
+    if (!student?.officeId) return 'Sin oficina';
+    const office = offices.find(o => o.id === student.officeId);
+    return office?.name || 'Sin oficina';
+  };
+
+  const getPerspectiveName = (perspectiveId: string) => {
+    const perspective = perspectives.find(p => p.id === perspectiveId);
+    return perspective?.name || 'Sin perspectiva';
+  };
+
+  const getJuryNames = (juryIds: string[] = []) => {
+    if (!juryIds.length) return 'Sin jurado asignado';
+    const names = juryIds
+      .map(id => allUsers.find(u => u.id === id)?.name)
+      .filter(Boolean) as string[];
+    return names.length ? names.join(', ') : 'Sin jurado asignado';
   };
 
   // Filtrar asignaciones para asignadores
@@ -390,6 +426,10 @@ export default function MyAssignmentsPage() {
                         isAsignador={isAsignador}
                         getStudentName={getStudentName}
                         getFacultyName={getFacultyName}
+                        getSchoolName={getSchoolName}
+                        getOfficeName={getOfficeName}
+                        getPerspectiveName={getPerspectiveName}
+                        getJuryNames={getJuryNames}
                       />
                     );
                   } else {

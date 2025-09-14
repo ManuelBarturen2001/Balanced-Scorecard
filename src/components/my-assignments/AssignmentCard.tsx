@@ -12,7 +12,11 @@ interface AssignmentCardProps {
   userId: string;
   isAsignador?: boolean;
   getStudentName?: (userId: string) => string;
-  getFacultyName?: (facultyId: string) => string;
+  getFacultyName?: (userId: string) => string;
+  getSchoolName?: (userId: string) => string;
+  getOfficeName?: (userId: string) => string;
+  getPerspectiveName?: (perspectiveId: string) => string;
+  getJuryNames?: (juryIds: string[]) => string;
 }
 
 const statusColors = {
@@ -31,40 +35,64 @@ const statusTranslations = {
   Overdue: 'Vencido',
 };
 
-export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload, userId, isAsignador = false, getStudentName, getFacultyName }: AssignmentCardProps) {
+export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload, userId, isAsignador = false, getStudentName, getFacultyName, getSchoolName, getOfficeName, getPerspectiveName, getJuryNames }: AssignmentCardProps) {
   // Estado de la asignación
   const status = assignedIndicator.overallStatus || 'Pending';
 
   if (isAsignador) {
     // Vista para asignadores
     const studentName = getStudentName ? getStudentName(assignedIndicator.userId) : 'Usuario desconocido';
-    const facultyName = getFacultyName ? getFacultyName(assignedIndicator.userId) : 'Facultad no especificada';
-    const juryName = assignedIndicator.jury?.length > 0 ? `${assignedIndicator.jury.length} jurado(s)` : 'Sin jurado asignado';
+    const facultyName = getFacultyName ? getFacultyName(assignedIndicator.userId) : 'Sin facultad';
+    const schoolName = getSchoolName ? getSchoolName(assignedIndicator.userId) : 'Sin escuela';
+    const officeName = getOfficeName ? getOfficeName(assignedIndicator.userId) : 'Sin oficina';
+    const perspectiveName = getPerspectiveName ? getPerspectiveName(assignedIndicator.perspectiveId) : 'Sin perspectiva';
+    const juryName = getJuryNames ? getJuryNames(assignedIndicator.jury) : (assignedIndicator.jury?.length > 0 ? `${assignedIndicator.jury.length} jurado(s)` : 'Sin jurado asignado');
+    
+    // Determinar si es facultad u oficina basado en los datos del usuario
+    const hasFaculty = facultyName && !facultyName.includes('Sin facultad');
+    const hasOffice = officeName && !officeName.includes('Sin oficina');
+    
+    // Formatear fecha de vencimiento
+    const dueDate = assignedIndicator.dueDate ? new Date(assignedIndicator.dueDate).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 'Sin fecha límite';
 
     return (
-      <div className="flex items-center justify-between p-3 border-b border-border hover:bg-muted/30 transition-colors">
-        <div className="flex items-center gap-3 flex-1">
-          <Users className="h-5 w-5 text-muted-foreground" />
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-foreground truncate">
+      <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onViewDetails(assignedIndicator)}>
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <p className="font-medium text-foreground">
               {studentName}
             </p>
-            <p className="text-sm text-muted-foreground">
-              Asignación #{assignedIndicator.id} • {facultyName}
+          </div>
+          
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p><span className="font-medium">Perspectiva:</span> {perspectiveName}</p>
+            <p>
+              <span className="font-medium">{hasFaculty ? 'Facultad:' : 'Oficina:'}</span> {
+                hasFaculty 
+                  ? `${facultyName}${schoolName !== 'Sin escuela' ? ` - ${schoolName}` : ''}`
+                  : officeName
+              }
             </p>
-            <p className="text-xs text-muted-foreground">
-              Jurado: {juryName}
-            </p>
+            <p><span className="font-medium">Jurado:</span> {juryName}</p>
+            <p><span className="font-medium">Fecha de Vencimiento:</span> {dueDate}</p>
           </div>
         </div>
-        <Badge 
-          className={cn(
-            "text-xs whitespace-nowrap",
-            statusColors[status] || statusColors.Pending
-          )}
-        >
-          {statusTranslations[status] || status}
-        </Badge>
+        
+        <div className="flex flex-col items-end gap-2">
+          <Badge 
+            className={cn(
+              "text-xs whitespace-nowrap",
+              statusColors[status] || statusColors.Pending
+            )}
+          >
+            {statusTranslations[status] || status}
+          </Badge>
+        </div>
       </div>
     );
   } else {

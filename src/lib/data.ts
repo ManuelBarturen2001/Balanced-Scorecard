@@ -1,4 +1,4 @@
-import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, MockFile } from '@/lib/types';
+import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, Office, MockFile } from '@/lib/types';
 import { Library, Target, FileCheck, Users, DollarSign, BarChart2, Briefcase, Lightbulb } from 'lucide-react';
 import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -131,10 +131,52 @@ export const professionalSchools: ProfessionalSchool[] = [
   { id: 'ep-60', name: 'Ingeniería Biomédica', facultyId: 'fac-20' },
 ];
 
+// Datos de Oficinas de la UNMSM
+export const offices: Office[] = [
+  { id: 'off-1', name: 'Centro Cultural de San Marcos' },
+  { id: 'off-2', name: 'Centro de Responsabilidad social' },
+  { id: 'off-3', name: 'Centro Preuniversitario' },
+  { id: 'off-4', name: 'Concursos Públicos' },
+  { id: 'off-5', name: 'Dirección General de Administración' },
+  { id: 'off-6', name: 'Direccion General de Bibliotecas y Publicaciones' },
+  { id: 'off-7', name: 'Direccion General de Escuelas profesionales e innovacion curricular' },
+  { id: 'off-8', name: 'Direccion General de Estudios de Posgrado' },
+  { id: 'off-9', name: 'Direccion General de Gestion de desarrollo Docente, Estudiantil y Graduado' },
+  { id: 'off-10', name: 'Direccion General de Investigación y Transferencia Tecnológica' },
+  { id: 'off-11', name: 'Dirección General de Responsabilidad Social' },
+  { id: 'off-12', name: 'Direccion General de Unidades Desconcentradas' },
+  { id: 'off-13', name: 'Movilidad, Cooperación y Becas' },
+  { id: 'off-14', name: 'Noticias y eventos' },
+  { id: 'off-15', name: 'Oficina Central de Admisión (OCA)' },
+  { id: 'off-16', name: 'Oficina Central de Calidad Académica y Acreditación (OCCA)' },
+  { id: 'off-17', name: 'Oficina de Educación Virtual' },
+  { id: 'off-18', name: 'Oficina de la Defensoría Universitaria' },
+  { id: 'off-19', name: 'Oficina General de Asesoría Legal' },
+  { id: 'off-20', name: 'Oficina General de Bienestar Universitario' },
+  { id: 'off-21', name: 'Oficina General de Cooperación y Relaciones Interinstitucionales (OGCRI)' },
+  { id: 'off-22', name: 'Oficina General de Economía' },
+  { id: 'off-23', name: 'Oficina General de Economía es el órgano dependiente de la Dirección General de Administración' },
+  { id: 'off-24', name: 'Oficina General de Gestión del Riesgo y Adaptación al Cambio Climático' },
+  { id: 'off-25', name: 'Oficina General de Imagen Institucional' },
+  { id: 'off-26', name: 'Oficina General de Infraestructura' },
+  { id: 'off-27', name: 'Oficina General de Planificación' },
+  { id: 'off-28', name: 'Oficina General de Recursos Humanos' },
+  { id: 'off-29', name: 'Oficina General de Servicios Generales, Operaciones y Mantenimiento' },
+  { id: 'off-30', name: 'Oficina General del Sistema de Bibliotecas y Biblioteca Central' },
+  { id: 'off-31', name: 'Portal del empleo' },
+  { id: 'off-32', name: 'Quipucamayoc' },
+  { id: 'off-33', name: 'Rectorado' },
+  { id: 'off-34', name: 'Red Telemática' },
+  { id: 'off-35', name: 'Sistema de gestión documental con firma digital' },
+  { id: 'off-36', name: 'Vicerrectorado Académico de Pregrado' },
+  { id: 'off-37', name: 'Vicerrectorado de investigación y posgrado' },
+  { id: 'off-38', name: 'Vida universitaria' },
+];
+
 export const users: User[] = [
-  { id: 'user-1', name: 'Alicia Admin', email: 'alice@example.com', role: 'admin', avatar: 'https://placehold.co/100x100' },
-  { id: 'user-2', name: 'Roberto Usuario', email: 'bob@example.com', role: 'user', avatar: 'https://placehold.co/100x100' },
-  { id: 'user-3', name: 'Carlos Ejemplo', email: 'charlie@example.com', role: 'user', avatar: 'https://placehold.co/100x100' },
+  { id: 'user-1', name: 'Alicia Admin', email: 'alice@example.com', role: 'admin', roleType: 'unico', avatar: 'https://placehold.co/100x100' },
+  { id: 'user-2', name: 'Roberto Responsable', email: 'bob@example.com', role: 'responsable', roleType: 'variante', avatar: 'https://placehold.co/100x100' },
+  { id: 'user-3', name: 'Carlos Ejemplo', email: 'charlie@example.com', role: 'responsable', roleType: 'variante', avatar: 'https://placehold.co/100x100' },
 ];
 
 export const indicators: Indicator[] = [
@@ -298,12 +340,16 @@ export const getProfessionalSchoolsByFaculty = (facultyId: string): Professional
   return professionalSchools.filter(ps => ps.facultyId === facultyId);
 };
 
+export const getAllOffices = (): Office[] => {
+  return offices;
+};
+
 export const getAllUsers = async (): Promise<User[]> => {
   const users = await getCollection<User>('user');
   return users.map(user => ({
     ...user,
     avatar: user.avatar || 'https://cdn.iconscout.com/icon/free/png-256/free-avatar-icon-download-in-svg-png-gif-file-formats--user-boy-avatars-flat-icons-pack-people-456322.png',
-    role: user.role || 'user'
+    role: user.role || 'responsable'
   }));
 };
 
@@ -359,15 +405,20 @@ export const createUser = async (user: Omit<User, 'id'>, password: string): Prom
     const userCredential = await createUserWithEmailAndPassword(auth, user.email, password);
     const firebaseUser = userCredential.user;
     
-    // Luego crear el documento en Firestore con el mismo UID
+    // Filtrar campos undefined para evitar errores de Firebase
     const userData = {
       ...user,
       isFirstLogin: true, // Marcar como primer inicio de sesión
       //id: firebaseUser.uid  Usar el UID de Firebase Auth como ID del documento
     };
     
+    // Remover campos undefined
+    const cleanUserData = Object.fromEntries(
+      Object.entries(userData).filter(([_, value]) => value !== undefined)
+    );
+    
     // Insertar en Firestore usando el UID como ID del documento
-    await insertDocument<User>('user', userData);
+    await insertDocument<User>('user', cleanUserData as Omit<User, 'id'>);
     
     return firebaseUser.uid;
   } catch (error) {
@@ -448,15 +499,15 @@ export const uploadFile = async (
 export const migrateUserRoles = async (): Promise<void> => {
   try {
     const allUsers = await getCollection<User>('user');
-    const usersToMigrate = allUsers.filter(user => user.role === 'user');
+    const usersToMigrate = allUsers.filter(user => (user.role as string) === 'user');
     
     for (const user of usersToMigrate) {
       await updateUser(user.id, { 
-        role: 'usuario',
+        role: 'responsable',
         roleType: 'variante',
-        availableRoles: ['usuario', 'calificador']
+        availableRoles: ['responsable', 'calificador']
       });
-      console.log(`Migrated user ${user.name} from 'user' to 'usuario'`);
+      console.log(`Migrated user ${user.name} from 'user' to 'responsable'`);
     }
     
     console.log(`Migration completed. ${usersToMigrate.length} users migrated.`);

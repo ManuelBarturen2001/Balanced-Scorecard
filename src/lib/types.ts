@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 
 // Nuevo sistema de roles
-export type UserRole = 'usuario' | 'calificador' | 'asignador' | 'admin';
+export type UserRole = 'responsable' | 'calificador' | 'asignador' | 'admin';
 export type RoleType = 'variante' | 'unico';
 
 export interface User {
@@ -14,6 +14,9 @@ export interface User {
   isFirstLogin?: boolean;
   facultyId?: string;
   professionalSchoolId?: string;
+  officeId?: string;
+  bossName?: string;
+  bossEmail?: string;
   // Para roles variantes, pueden tener múltiples roles
   availableRoles?: UserRole[];
   // Para calificadores, especificar en qué facultades puede calificar
@@ -60,11 +63,17 @@ export interface ProfessionalSchool {
   facultyId: string;
 }
 
+export interface Office {
+  id: string;
+  name: string;
+}
+
 export interface Indicator {
   id: string;
   name: string;
   moreInformationLink: string;
   verificationMethods: string[];
+  perspectiveId?: string;
 }
 
 export interface Perspective {

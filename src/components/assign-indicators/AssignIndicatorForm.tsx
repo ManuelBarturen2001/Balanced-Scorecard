@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { getAllUsers, getAllIndicators, getAllPerspectives, insertAssignedIndicator, checkExistingAssignment, getAllFaculties, getAllProfessionalSchools } from '@/lib/data';
-import type { AssignedIndicator, User, Indicator, Perspective, VerificationMethod, Faculty, ProfessionalSchool } from '@/lib/types';
+import { getAllUsers, getAllIndicators, getAllPerspectives, insertAssignedIndicator, checkExistingAssignment, getAllFaculties, getAllProfessionalSchools, getAllOffices } from '@/lib/data';
+import type { AssignedIndicator, User, Indicator, Perspective, VerificationMethod, Faculty, ProfessionalSchool, Office } from '@/lib/types';
 import { Loader2, PlusCircle, Save, Search, Filter, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -34,6 +35,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
   const [perspectives, setPerspectives] = useState<Perspective[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [verificationMethods, setVerificationMethods] = useState<string[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isLoadingUsersForAssignment, setIsLoadingUsersForAssignment] = useState(true);
@@ -50,9 +52,16 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
   
   // Filtros para usuarios
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState<'office' | 'faculty'>('office');
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>('all');
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('all');
+  const [selectedOfficeFilter, setSelectedOfficeFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Estados para métodos de verificación
+  const [enabledVerificationMethods, setEnabledVerificationMethods] = useState<string[]>([]);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [methodToDisable, setMethodToDisable] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,13 +95,15 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
         const fetchedPerspectives = await getAllPerspectives();
         setPerspectives(fetchedPerspectives);
 
-        // Fetch faculties and schools
-        const [fetchedFaculties, fetchedSchools] = await Promise.all([
+        // Fetch faculties, schools and offices
+        const [fetchedFaculties, fetchedSchools, fetchedOffices] = await Promise.all([
           getAllFaculties(),
-          getAllProfessionalSchools()
+          getAllProfessionalSchools(),
+          getAllOffices()
         ]);
         setFaculties(fetchedFaculties);
         setProfessionalSchools(fetchedSchools);
+        setOffices(fetchedOffices);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
@@ -115,12 +126,15 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
   useEffect(() => {
     if (!selectedIndicatorId) {
       setVerificationMethods([]);
+      setEnabledVerificationMethods([]);
       return;
     }
     setIsLoadingVerificationMethods(true);
     try {
       const selectedIndicator = indicators.find(i => i.id === selectedIndicatorId);
-      setVerificationMethods(selectedIndicator?.verificationMethods || []);
+      const methods = selectedIndicator?.verificationMethods || [];
+      setVerificationMethods(methods);
+      setEnabledVerificationMethods(methods); // Inicialmente todos habilitados
     } catch (error) {
       console.error('Error setting verification methods:', error);
       toast({
@@ -132,6 +146,21 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
       setIsLoadingVerificationMethods(false);
     }
   }, [selectedIndicatorId, indicators, toast]);
+
+  // Si cambia la perspectiva y el indicador actual no pertenece a ella, limpiar el indicador
+  useEffect(() => {
+    if (!selectedPerspectiveId) return;
+    const current = indicators.find(i => i.id === selectedIndicatorId);
+    if (current && current.perspectiveId !== selectedPerspectiveId) {
+      setSelectedIndicatorId('');
+      setVerificationMethods([]);
+    }
+  }, [selectedPerspectiveId, selectedIndicatorId, indicators]);
+
+  // Indicadores filtrados por perspectiva desde Firebase
+  const filteredIndicatorsByPerspective = selectedPerspectiveId
+    ? indicators.filter(i => i.perspectiveId === selectedPerspectiveId)
+    : indicators;
 
   // Limpiar calificadores cuando cambie el usuario seleccionado
   useEffect(() => {
@@ -151,22 +180,36 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
     
     // Si el usuario es asignador o admin, mostrar todos los usuarios elegibles
     if (isAdmin || isAsignador) {
-      // Aplicar filtro de búsqueda por nombre
+      // Aplicar filtros según el tipo de búsqueda seleccionado
+      if (searchType === 'faculty') {
+        // Filtrar solo usuarios que tengan facultad asignada
+        filtered = filtered.filter(u => u.facultyId);
+        
+        // Aplicar filtro de facultad específica
+        if (selectedFacultyFilter !== 'all') {
+          filtered = filtered.filter(u => u.facultyId === selectedFacultyFilter);
+        }
+        
+        // Aplicar filtro de escuela profesional
+        if (selectedSchoolFilter !== 'all') {
+          filtered = filtered.filter(u => u.professionalSchoolId === selectedSchoolFilter);
+        }
+      } else if (searchType === 'office') {
+        // Filtrar solo usuarios que tengan oficina asignada
+        filtered = filtered.filter(u => u.officeId);
+        
+        // Aplicar filtro de oficina específica
+        if (selectedOfficeFilter !== 'all') {
+          filtered = filtered.filter(u => u.officeId === selectedOfficeFilter);
+        }
+      }
+      
+      // Aplicar filtro de búsqueda por nombre (después de los filtros de tipo)
       if (searchTerm) {
         filtered = filtered.filter(u => 
           u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           u.email.toLowerCase().includes(searchTerm.toLowerCase())
         );
-      }
-      
-      // Aplicar filtro de facultad
-      if (selectedFacultyFilter !== 'all') {
-        filtered = filtered.filter(u => u.facultyId === selectedFacultyFilter);
-      }
-      
-      // Aplicar filtro de escuela profesional
-      if (selectedSchoolFilter !== 'all') {
-        filtered = filtered.filter(u => u.professionalSchoolId === selectedSchoolFilter);
       }
       
       return filtered;
@@ -223,8 +266,42 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
 
   const clearFilters = () => {
     setSearchTerm('');
+    setSearchType('office');
     setSelectedFacultyFilter('all');
     setSelectedSchoolFilter('all');
+    setSelectedOfficeFilter('all');
+  };
+
+  // Funciones para manejar métodos de verificación
+  const handleVerificationMethodToggle = (method: string) => {
+    if (enabledVerificationMethods.includes(method)) {
+      // Si está habilitado, verificar si se puede deshabilitar
+      if (enabledVerificationMethods.length <= 1) {
+        toast({
+          title: "Error",
+          description: "Debe quedar al menos un método de verificación habilitado.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Mostrar modal de confirmación
+      setMethodToDisable(method);
+      setShowVerificationModal(true);
+    } else {
+      // Si está deshabilitado, habilitarlo
+      setEnabledVerificationMethods([...enabledVerificationMethods, method]);
+    }
+  };
+
+  const confirmDisableMethod = () => {
+    setEnabledVerificationMethods(enabledVerificationMethods.filter(m => m !== methodToDisable));
+    setShowVerificationModal(false);
+    setMethodToDisable('');
+  };
+
+  const cancelDisableMethod = () => {
+    setShowVerificationModal(false);
+    setMethodToDisable('');
   };
 
   // Resetear escuela cuando cambie la facultad
@@ -246,16 +323,21 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
     return school?.name || 'Sin escuela';
   };
 
+  const getOfficeName = (officeId: string) => {
+    const office = offices.find(o => o.id === officeId);
+    return office?.name || 'Sin oficina';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Determinar el userId basado en el rol del usuario
     const targetUserId = (isAdmin || isAsignador) ? selectedUserId : (user?.id || '');
     
-    if (!targetUserId || !selectedIndicatorId || !selectedPerspectiveId || verificationMethods.length === 0) {
+    if (!targetUserId || !selectedIndicatorId || !selectedPerspectiveId || enabledVerificationMethods.length === 0) {
       toast({
         title: "Error",
-        description: "Por favor completa todos los campos requeridos y asegúrate de que el indicador tenga métodos de verificación.",
+        description: "Por favor completa todos los campos requeridos y asegúrate de que el indicador tenga al menos un método de verificación habilitado.",
         variant: "destructive",
       });
       return;
@@ -298,7 +380,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
         perspectiveId: selectedPerspectiveId,
         assignedDate: new Date(),
         dueDate: selectedDueDate,
-        assignedVerificationMethods: verificationMethods.map((method) => ({
+        assignedVerificationMethods: enabledVerificationMethods.map((method) => ({
           name: method,
           status: 'Pending',
           dueDate: selectedDueDate,
@@ -320,6 +402,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
       setSelectedIndicatorId('');
       setSelectedPerspectiveId('');
       setVerificationMethods([]);
+      setEnabledVerificationMethods([]);
       setSelectedJuryMembers([]);
       setSelectedJuryMember('');
       setDueDate('');
@@ -355,44 +438,47 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
         <form onSubmit={handleSubmit} className="space-y-6">
           {(isAdmin || isAsignador) && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Usuario</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2"
-                >
-                  <Filter className="h-4 w-4" />
-                  {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
-                </Button>
-              </div>
+              <Label>Responsable</Label>
 
-              {/* Filtros */}
-              {showFilters && (
-                <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nombre o email..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="flex-1"
-                    />
-                    {searchTerm && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSearchTerm('')}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
+              {/* Filtros - Siempre visibles */}
+              <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                {/* Selector de tipo de búsqueda */}
+                <div>
+                  <Label className="text-sm font-medium">Buscar responsable por:</Label>
+                  <Select value={searchType} onValueChange={(value: 'office' | 'faculty') => setSearchType(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tipo de búsqueda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="office">Oficina</SelectItem>
+                      <SelectItem value="faculty">Facultad</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nombre o email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                  {searchTerm && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchTerm('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Filtros condicionales según el tipo de búsqueda */}
+                {searchType === 'faculty' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <Label className="text-sm">Facultad</Label>
                       <Select value={selectedFacultyFilter} onValueChange={handleFacultyChange}>
@@ -429,23 +515,42 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
                       </Select>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {filteredUsers.length} usuarios encontrados
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="text-xs"
-                    >
-                      Limpiar filtros
-                    </Button>
+                )}
+
+                {searchType === 'office' && (
+                  <div>
+                    <Label className="text-sm">Oficina</Label>
+                    <Select value={selectedOfficeFilter} onValueChange={setSelectedOfficeFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas las oficinas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las oficinas</SelectItem>
+                        {offices.map((office) => (
+                          <SelectItem key={office.id} value={office.id}>
+                            {office.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {filteredUsers.length} responsables encontrados
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="text-xs"
+                  >
+                    Limpiar filtros
+                  </Button>
                 </div>
-              )}
+              </div>
 
               <Select
                 onValueChange={setSelectedUserId}
@@ -453,7 +558,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
                 disabled={isLoadingUsersForAssignment}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={isLoadingUsersForAssignment ? "Cargando usuarios..." : "Selecciona un usuario para asignar el indicador"} />
+                  <SelectValue placeholder={isLoadingUsersForAssignment ? "Cargando usuarios..." : "Selecciona un responsable para asignar el indicador"} />
                 </SelectTrigger>
                 <SelectContent>
                   {filteredUsers.length === 0 ? (
@@ -466,7 +571,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
                         <div className="flex flex-col">
                           <span className="font-medium">{u.name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {u.email} • {u.role} • {getFacultyName(u.facultyId || '')} • {getSchoolName(u.professionalSchoolId || '')}
+                            {u.email} • {u.role} • {getFacultyName(u.facultyId || '')} • {getSchoolName(u.professionalSchoolId || '')} • {getOfficeName(u.officeId || '')}
                           </span>
                         </div>
                       </SelectItem>
@@ -485,7 +590,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
 
           {!isAdmin && !isAsignador && user && (
             <div className="space-y-2">
-              <Label>Usuario</Label>
+              <Label>Responsable</Label>
               <Input 
                 type="text" 
                 value={user.name} 
@@ -496,24 +601,6 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
               <p className="text-sm text-muted-foreground">Los indicadores te serán asignados a ti.</p>
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label>Indicador</Label>
-            <Select
-              onValueChange={setSelectedIndicatorId}
-              value={selectedIndicatorId}
-              disabled={isLoadingIndicators}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={isLoadingIndicators ? "Cargando indicadores..." : "Selecciona un indicador institucional"} />
-              </SelectTrigger>
-              <SelectContent>
-                {indicators.map((i,index) => (
-                  <SelectItem key={index} value={i.id}>{truncateText(i.name)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-2">
             <Label>Perspectiva</Label>
@@ -539,6 +626,24 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
           </div>
 
           <div className="space-y-2">
+            <Label>Indicador</Label>
+            <Select
+              onValueChange={setSelectedIndicatorId}
+              value={selectedIndicatorId}
+              disabled={isLoadingIndicators || (!selectedPerspectiveId)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoadingIndicators ? "Cargando indicadores..." : (!selectedPerspectiveId ? "Selecciona una perspectiva primero" : "Selecciona un indicador institucional")} />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredIndicatorsByPerspective.map((i,index) => (
+                  <SelectItem key={index} value={i.id}>{truncateText(i.name)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Métodos de Verificación</Label>
             {isLoadingVerificationMethods ? (
               <div className="flex items-center space-x-2">
@@ -549,12 +654,22 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
               <div className="space-y-2">
                 {verificationMethods.map((method, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <Checkbox id={`method-${index}`} checked={true} disabled />
+                    <Checkbox 
+                      id={`method-${index}`} 
+                      checked={enabledVerificationMethods.includes(method)}
+                      onCheckedChange={() => handleVerificationMethodToggle(method)}
+                      disabled={!isAdmin && !isAsignador}
+                    />
                     <Label htmlFor={`method-${index}`} className="text-sm">
                       {method}
                     </Label>
                   </div>
                 ))}
+                {(isAdmin || isAsignador) && (
+                  <p className="text-xs text-muted-foreground">
+                    Puedes deshabilitar métodos de verificación, pero debe quedar al menos uno habilitado.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Selecciona un indicador para ver sus métodos de verificación.</p>
@@ -565,7 +680,7 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
             <Label className="text-base font-medium">Jurado Calificador</Label>
             {!selectedUserId && (isAdmin || isAsignador) && (
               <p className="text-sm text-muted-foreground">
-                Primero selecciona un usuario para ver los calificadores disponibles de su facultad.
+                Primero selecciona un responsable para ver los calificadores disponibles de su facultad.
               </p>
             )}
             <div className="flex gap-2">
@@ -653,6 +768,26 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
           </CardFooter>
         </form>
       </CardContent>
+
+      {/* Modal de confirmación para deshabilitar método de verificación */}
+      <Dialog open={showVerificationModal} onOpenChange={setShowVerificationModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar deshabilitación</DialogTitle>
+            <DialogDescription>
+              ¿Seguro que desea deshabilitar el método de verificación "{methodToDisable}"?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelDisableMethod}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDisableMethod}>
+              Deshabilitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getUserById, updateUser, getAllFaculties, getProfessionalSchoolsByFaculty } from '@/lib/data';
-import type { User, UserRole, RoleType, Faculty, ProfessionalSchool } from '@/lib/types';
+import { getUserById, updateUser, getAllFaculties, getProfessionalSchoolsByFaculty, getAllOffices } from '@/lib/data';
+import type { User, UserRole, RoleType, Faculty, ProfessionalSchool, Office } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,21 +28,25 @@ export default function AdminEditUserPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatar, setAvatar] = useState('');
-  const [role, setRole] = useState<UserRole>('usuario');
+  const [role, setRole] = useState<UserRole>('responsable');
   const [roleType, setRoleType] = useState<RoleType>('variante');
-  const [availableRoles, setAvailableRoles] = useState<UserRole[]>(['usuario']);
+  const [availableRoles, setAvailableRoles] = useState<UserRole[]>(['responsable']);
   const [facultyId, setFacultyId] = useState('');
   const [professionalSchoolId, setProfessionalSchoolId] = useState('');
+  const [officeId, setOfficeId] = useState('');
+  const [bossName, setBossName] = useState('');
+  const [bossEmail, setBossEmail] = useState('');
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Configuración de roles según el tipo
   const roleConfig = {
-    usuario: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
-    calificador: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
+    responsable: { type: 'variante' as RoleType, availableRoles: ['responsable', 'calificador'] },
+    calificador: { type: 'variante' as RoleType, availableRoles: ['responsable', 'calificador'] },
     asignador: { type: 'unico' as RoleType, availableRoles: ['asignador'] },
     admin: { type: 'unico' as RoleType, availableRoles: ['admin'] }
   };
@@ -72,6 +76,9 @@ export default function AdminEditUserPage() {
           setAvailableRoles(foundUser.availableRoles || [foundUser.role]);
           setFacultyId(foundUser.facultyId || '');
           setProfessionalSchoolId(foundUser.professionalSchoolId || '');
+          setOfficeId(foundUser.officeId || '');
+          setBossName(foundUser.bossName || '');
+          setBossEmail(foundUser.bossEmail || '');
         } else {
           setError('Usuario no encontrado');
           toast({
@@ -98,21 +105,25 @@ export default function AdminEditUserPage() {
   }, [userId, router, toast]);
 
   useEffect(() => {
-    const loadFaculties = async () => {
+    const loadData = async () => {
       try {
-        const facultiesData = getAllFaculties();
+        const [facultiesData, officesData] = await Promise.all([
+          getAllFaculties(),
+          getAllOffices()
+        ]);
         setFaculties(facultiesData);
+        setOffices(officesData);
       } catch (error) {
-        console.error('Error loading faculties:', error);
+        console.error('Error loading data:', error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar las facultades.",
+          description: "No se pudieron cargar los datos.",
           variant: "destructive",
         });
       }
     };
 
-    loadFaculties();
+    loadData();
   }, [toast]);
 
   useEffect(() => {
@@ -165,6 +176,9 @@ export default function AdminEditUserPage() {
         availableRoles,
         facultyId: facultyId || undefined,
         professionalSchoolId: professionalSchoolId || undefined,
+        officeId: officeId || undefined,
+        bossName: bossName || undefined,
+        bossEmail: bossEmail || undefined,
       };
 
       await updateUser(userId, updatedUserData);
@@ -307,7 +321,7 @@ export default function AdminEditUserPage() {
                         <SelectValue placeholder="Seleccione un rol" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usuario">Usuario (Rol Variante)</SelectItem>
+                        <SelectItem value="responsable">Responsable (Rol Variante)</SelectItem>
                         <SelectItem value="calificador">Calificador (Rol Variante)</SelectItem>
                         <SelectItem value="asignador">Asignador (Rol Único)</SelectItem>
                         <SelectItem value="admin">Administrador (Rol Único)</SelectItem>
@@ -397,6 +411,55 @@ export default function AdminEditUserPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Información de Oficina */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información de Oficina</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="office">Oficina</Label>
+                  <Select value={officeId} onValueChange={setOfficeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione una oficina" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {offices.map((office) => (
+                        <SelectItem key={office.id} value={office.id}>
+                          {office.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Información del Jefe/Encargado */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información del Jefe/Encargado</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bossName">Nombre del Jefe/Encargado</Label>
+                    <Input
+                      id="bossName"
+                      value={bossName}
+                      onChange={(e) => setBossName(e.target.value)}
+                      placeholder="Ingrese el nombre del jefe o encargado"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="bossEmail">Correo del Jefe/Encargado</Label>
+                    <Input
+                      id="bossEmail"
+                      type="email"
+                      value={bossEmail}
+                      onChange={(e) => setBossEmail(e.target.value)}
+                      placeholder="Ingrese el correo del jefe o encargado"
+                    />
                   </div>
                 </div>
               </div>

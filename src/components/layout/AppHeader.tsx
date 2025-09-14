@@ -26,6 +26,7 @@ const roleLabels = {
   usuario: 'Usuario',
   calificador: 'Calificador',
   asignador: 'Asignador',
+  responsable: 'Responsable',
   admin: 'Administrador',
 };
 

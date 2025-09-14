@@ -40,6 +40,7 @@ const roleTranslations: Record<UserRole, string> = {
   usuario: "Usuario",
   calificador: "Calificador",
   asignador: "Asignador",
+  responsable: "Responsable",
   admin: "Administrador",
 };
 
@@ -52,6 +53,7 @@ const roleColors: Record<UserRole, string> = {
   usuario: "bg-blue-100 text-blue-800",
   calificador: "bg-green-100 text-green-800",
   asignador: "bg-purple-100 text-purple-800",
+  responsable: "bg-amber-100 text-amber-800",
   admin: "bg-red-100 text-red-800",
 };
 
@@ -97,6 +99,7 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
             <TableHead className="px-4">Rol</TableHead>
             <TableHead className="px-4">Tipo</TableHead>
             <TableHead className="px-4">Facultad</TableHead>
+            <TableHead className="px-4">Oficina</TableHead>
             <TableHead className="text-right px-4">Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -140,6 +143,9 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
               </TableCell>
               <TableCell className="px-4 text-muted-foreground">
                 {user.facultyId ? 'Facultad asignada' : 'Sin facultad'}
+              </TableCell>
+              <TableCell className="px-4 text-muted-foreground">
+                {user.officeId || user.officeName ? 'Oficina asignada' : 'Sin oficina'}
               </TableCell>
               <TableCell className="px-4 text-right">
                 <DropdownMenu>

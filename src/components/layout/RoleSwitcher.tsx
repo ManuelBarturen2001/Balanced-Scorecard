@@ -18,6 +18,7 @@ const roleIcons = {
   usuario: User,
   calificador: FileCheck,
   asignador: Users,
+  responsable: Users,
   admin: Settings,
 };
 
@@ -25,6 +26,7 @@ const roleLabels = {
   usuario: 'Usuario',
   calificador: 'Calificador',
   asignador: 'Asignador',
+  responsable: 'Responsable',
   admin: 'Administrador',
 };
 

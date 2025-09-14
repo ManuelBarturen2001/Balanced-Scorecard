@@ -1,4 +1,4 @@
-import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, MockFile } from '@/lib/types';
+import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, MockFile, Office } from '@/lib/types';
 import { Library, Target, FileCheck, Users, DollarSign, BarChart2, Briefcase, Lightbulb } from 'lucide-react';
 import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -26,6 +26,15 @@ export const faculties: Faculty[] = [
   { id: 'fac-18', name: 'Facultad de Ingeniería de Sistemas e Informática', shortName: 'Sistemas' },
   { id: 'fac-19', name: 'Facultad de Psicología', shortName: 'Psicología' },
   { id: 'fac-20', name: 'Facultad de Ingeniería Electrónica y Eléctrica', shortName: 'Electrónica' },
+];
+
+// Datos de Oficinas (ejemplo)
+export const offices: Office[] = [
+  { id: 'of-rectorado', name: 'Rectorado', shortName: 'Rectorado' },
+  { id: 'of-vri', name: 'Vicerrectorado de Investigación', shortName: 'VRI' },
+  { id: 'of-vra', name: 'Vicerrectorado Académico', shortName: 'VRA' },
+  { id: 'of-rrii', name: 'Oficina de Relaciones Internacionales', shortName: 'ORII' },
+  { id: 'of-ti', name: 'Oficina de Tecnologías de Información', shortName: 'OTI' },
 ];
 
 // Datos de Escuelas Profesionales de la UNMSM
@@ -132,9 +141,9 @@ export const professionalSchools: ProfessionalSchool[] = [
 ];
 
 export const users: User[] = [
-  { id: 'user-1', name: 'Alicia Admin', email: 'alice@example.com', role: 'admin', avatar: 'https://placehold.co/100x100' },
-  { id: 'user-2', name: 'Roberto Usuario', email: 'bob@example.com', role: 'user', avatar: 'https://placehold.co/100x100' },
-  { id: 'user-3', name: 'Carlos Ejemplo', email: 'charlie@example.com', role: 'user', avatar: 'https://placehold.co/100x100' },
+  { id: 'user-1', name: 'Alicia Admin', email: 'alice@example.com', role: 'admin', roleType: 'unico', avatar: 'https://placehold.co/100x100' },
+  { id: 'user-2', name: 'Roberto Usuario', email: 'bob@example.com', role: 'usuario', roleType: 'variante', availableRoles: ['usuario', 'calificador'], avatar: 'https://placehold.co/100x100' },
+  { id: 'user-3', name: 'Carlos Ejemplo', email: 'charlie@example.com', role: 'usuario', roleType: 'variante', availableRoles: ['usuario', 'calificador'], avatar: 'https://placehold.co/100x100' },
 ];
 
 export const indicators: Indicator[] = [
@@ -247,7 +256,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     return user ? {
       ...user,
       avatar: user.avatar || 'https://cdn.iconscout.com/icon/free/png-256/free-avatar-icon-download-in-svg-png-gif-file-formats--user-boy-avatars-flat-icons-pack-people-456322.png',
-      role: user.role || 'user'
+      role: ((user.role as any) === 'user' ? 'usuario' : user.role) || 'usuario'
     } : undefined;
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -298,12 +307,20 @@ export const getProfessionalSchoolsByFaculty = (facultyId: string): Professional
   return professionalSchools.filter(ps => ps.facultyId === facultyId);
 };
 
+export const getAllOffices = (): Office[] => {
+  return offices;
+};
+
+export const getOfficeById = (id: string): Office | undefined => {
+  return offices.find(o => o.id === id);
+};
+
 export const getAllUsers = async (): Promise<User[]> => {
   const users = await getCollection<User>('user');
   return users.map(user => ({
     ...user,
     avatar: user.avatar || 'https://cdn.iconscout.com/icon/free/png-256/free-avatar-icon-download-in-svg-png-gif-file-formats--user-boy-avatars-flat-icons-pack-people-456322.png',
-    role: user.role || 'user'
+    role: ((user.role as any) === 'user' ? 'usuario' : user.role) || 'usuario'
   }));
 };
 
@@ -314,7 +331,7 @@ export const getAllUsersExceptCurrent = async (currentUserId: string): Promise<U
     .map(user => ({
       ...user,
       avatar: user.avatar || 'https://cdn.iconscout.com/icon/free/png-256/free-avatar-icon-download-in-svg-png-gif-file-formats--user-boy-avatars-flat-icons-pack-people-456322.png',
-      role: user.role || 'user'
+      role: ((user.role as any) === 'user' ? 'usuario' : user.role) || 'usuario'
     }));
 };
 
@@ -448,7 +465,7 @@ export const uploadFile = async (
 export const migrateUserRoles = async (): Promise<void> => {
   try {
     const allUsers = await getCollection<User>('user');
-    const usersToMigrate = allUsers.filter(user => user.role === 'user');
+    const usersToMigrate = allUsers.filter(user => (user.role as any) === 'user');
     
     for (const user of usersToMigrate) {
       await updateUser(user.id, { 

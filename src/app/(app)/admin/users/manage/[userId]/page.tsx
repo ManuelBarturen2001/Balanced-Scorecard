@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getUserById, updateUser, getAllFaculties, getProfessionalSchoolsByFaculty } from '@/lib/data';
-import type { User, UserRole, RoleType, Faculty, ProfessionalSchool } from '@/lib/types';
+import { getUserById, updateUser, getAllFaculties, getProfessionalSchoolsByFaculty, getAllOffices } from '@/lib/data';
+import type { User, UserRole, RoleType, Faculty, ProfessionalSchool, Office } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,8 +33,15 @@ export default function AdminEditUserPage() {
   const [availableRoles, setAvailableRoles] = useState<UserRole[]>(['usuario']);
   const [facultyId, setFacultyId] = useState('');
   const [professionalSchoolId, setProfessionalSchoolId] = useState('');
+  const [officeId, setOfficeId] = useState('');
+  const [belongsTo, setBelongsTo] = useState<'facultad' | 'oficina' | 'ninguno'>('ninguno');
+  const [facultyHeadName, setFacultyHeadName] = useState('');
+  const [facultyHeadEmail, setFacultyHeadEmail] = useState('');
+  const [officeHeadName, setOfficeHeadName] = useState('');
+  const [officeHeadEmail, setOfficeHeadEmail] = useState('');
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +51,7 @@ export default function AdminEditUserPage() {
     usuario: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
     calificador: { type: 'variante' as RoleType, availableRoles: ['usuario', 'calificador'] },
     asignador: { type: 'unico' as RoleType, availableRoles: ['asignador'] },
+    responsable: { type: 'unico' as RoleType, availableRoles: ['responsable'] },
     admin: { type: 'unico' as RoleType, availableRoles: ['admin'] }
   };
 
@@ -72,6 +80,12 @@ export default function AdminEditUserPage() {
           setAvailableRoles(foundUser.availableRoles || [foundUser.role]);
           setFacultyId(foundUser.facultyId || '');
           setProfessionalSchoolId(foundUser.professionalSchoolId || '');
+          setOfficeId(foundUser.officeId || '');
+          setBelongsTo(foundUser.facultyId ? 'facultad' : (foundUser.officeId ? 'oficina' : 'ninguno'));
+          setFacultyHeadName(foundUser.facultyHeadName || '');
+          setFacultyHeadEmail(foundUser.facultyHeadEmail || '');
+          setOfficeHeadName(foundUser.officeHeadName || '');
+          setOfficeHeadEmail(foundUser.officeHeadEmail || '');
         } else {
           setError('Usuario no encontrado');
           toast({
@@ -101,7 +115,9 @@ export default function AdminEditUserPage() {
     const loadFaculties = async () => {
       try {
         const facultiesData = getAllFaculties();
+        const officesData = getAllOffices();
         setFaculties(facultiesData);
+        setOffices(officesData);
       } catch (error) {
         console.error('Error loading faculties:', error);
         toast({
@@ -163,8 +179,13 @@ export default function AdminEditUserPage() {
         role,
         roleType,
         availableRoles,
-        facultyId: facultyId || undefined,
-        professionalSchoolId: professionalSchoolId || undefined,
+        facultyId: belongsTo === 'facultad' ? (facultyId || undefined) : undefined,
+        professionalSchoolId: belongsTo === 'facultad' ? (professionalSchoolId || undefined) : undefined,
+        facultyHeadName: belongsTo === 'facultad' ? (facultyHeadName || undefined) : undefined,
+        facultyHeadEmail: belongsTo === 'facultad' ? (facultyHeadEmail || undefined) : undefined,
+        officeId: belongsTo === 'oficina' ? (officeId || undefined) : undefined,
+        officeHeadName: belongsTo === 'oficina' ? (officeHeadName || undefined) : undefined,
+        officeHeadEmail: belongsTo === 'oficina' ? (officeHeadEmail || undefined) : undefined,
       };
 
       await updateUser(userId, updatedUserData);
@@ -310,6 +331,7 @@ export default function AdminEditUserPage() {
                         <SelectItem value="usuario">Usuario (Rol Variante)</SelectItem>
                         <SelectItem value="calificador">Calificador (Rol Variante)</SelectItem>
                         <SelectItem value="asignador">Asignador (Rol Único)</SelectItem>
+                        <SelectItem value="responsable">Responsable (Rol Único)</SelectItem>
                         <SelectItem value="admin">Administrador (Rol Único)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -358,46 +380,106 @@ export default function AdminEditUserPage() {
                 )}
               </div>
 
-              {/* Información académica */}
+              {/* Pertenencia: Facultad u Oficina */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Información Académica</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold">Pertenencia</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="faculty">Facultad</Label>
-                    <Select value={facultyId} onValueChange={setFacultyId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione una facultad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {faculties.map((faculty) => (
-                          <SelectItem key={faculty.id} value={faculty.id}>
-                            {faculty.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>¿Pertenece a una facultad u oficina?</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      <Button type="button" variant={belongsTo === 'facultad' ? 'default' : 'outline'} onClick={() => { setBelongsTo('facultad'); setOfficeId(''); setOfficeHeadEmail(''); setOfficeHeadName(''); }}>
+                        Facultad
+                      </Button>
+                      <Button type="button" variant={belongsTo === 'oficina' ? 'default' : 'outline'} onClick={() => { setBelongsTo('oficina'); setFacultyId(''); setProfessionalSchoolId(''); setFacultyHeadEmail(''); setFacultyHeadName(''); }}>
+                        Oficina
+                      </Button>
+                      <Button type="button" variant={belongsTo === 'ninguno' ? 'default' : 'outline'} onClick={() => { setBelongsTo('ninguno'); setFacultyId(''); setProfessionalSchoolId(''); setOfficeId(''); setFacultyHeadEmail(''); setFacultyHeadName(''); setOfficeHeadEmail(''); setOfficeHeadName(''); }}>
+                        Ninguno
+                      </Button>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="professionalSchool">Escuela Profesional</Label>
-                    <Select 
-                      value={professionalSchoolId} 
-                      onValueChange={setProfessionalSchoolId}
-                      disabled={!facultyId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {professionalSchools.map((school) => (
-                          <SelectItem key={school.id} value={school.id}>
-                            {school.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {belongsTo === 'facultad' && (
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="faculty">Facultad</Label>
+                          <Select value={facultyId} onValueChange={setFacultyId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione una facultad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {faculties.map((faculty) => (
+                                <SelectItem key={faculty.id} value={faculty.id}>
+                                  {faculty.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="professionalSchool">Escuela Profesional</Label>
+                          <Select 
+                            value={professionalSchoolId} 
+                            onValueChange={setProfessionalSchoolId}
+                            disabled={!facultyId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {professionalSchools.map((school) => (
+                                <SelectItem key={school.id} value={school.id}>
+                                  {school.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="facultyHeadName">Nombre del jefe de facultad</Label>
+                          <Input id="facultyHeadName" value={facultyHeadName} onChange={(e) => setFacultyHeadName(e.target.value)} placeholder="Nombre del jefe de facultad" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="facultyHeadEmail">Correo del jefe de facultad</Label>
+                          <Input id="facultyHeadEmail" type="email" value={facultyHeadEmail} onChange={(e) => setFacultyHeadEmail(e.target.value)} placeholder="correo@facultad.edu.pe" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {belongsTo === 'oficina' && (
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="office">Oficina</Label>
+                          <Select value={officeId} onValueChange={setOfficeId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione una oficina" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {offices.map((office) => (
+                                <SelectItem key={office.id} value={office.id}>
+                                  {office.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="officeHeadName">Nombre del jefe de oficina</Label>
+                          <Input id="officeHeadName" value={officeHeadName} onChange={(e) => setOfficeHeadName(e.target.value)} placeholder="Nombre del jefe de oficina" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="officeHeadEmail">Correo del jefe de oficina</Label>
+                          <Input id="officeHeadEmail" type="email" value={officeHeadEmail} onChange={(e) => setOfficeHeadEmail(e.target.value)} placeholder="correo@oficina.edu.pe" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

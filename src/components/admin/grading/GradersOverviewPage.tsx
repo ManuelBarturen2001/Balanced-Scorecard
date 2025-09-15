@@ -22,7 +22,7 @@ export function GradersOverviewPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [assignments, setAssignments] = useState<AssignedIndicator[]>([]);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('all');
 
   useEffect(() => {
     getAllUsers().then(setUsers);
@@ -41,7 +41,7 @@ export function GradersOverviewPage() {
             jury,
             responsableName: a.responsableName || a.userId,
             indicatorId: a.indicatorId,
-            status: a.overallStatus || 'Pendiente',
+            status: a.overallStatus || 'Pending',
           });
         }
       }
@@ -52,7 +52,7 @@ export function GradersOverviewPage() {
   const filtered = useMemo(() => {
     return rows.filter(r => {
       const byName = r.jury.name.toLowerCase().includes(search.toLowerCase()) || r.responsableName.toLowerCase().includes(search.toLowerCase());
-      const byStatus = !status || r.status.toLowerCase() === status.toLowerCase();
+      const byStatus = status === 'all' || r.status.toLowerCase() === status.toLowerCase();
       return byName && byStatus;
     });
   }, [rows, search, status]);
@@ -80,7 +80,7 @@ export function GradersOverviewPage() {
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="Approved">Completo</SelectItem>
               <SelectItem value="Rejected">Rechazado</SelectItem>
               <SelectItem value="Pending">Pendiente</SelectItem>

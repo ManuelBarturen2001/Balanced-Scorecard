@@ -26,8 +26,8 @@ export function GraderManagementPage() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [assignments, setAssignments] = useState<AssignedIndicator[]>([]);
   const [search, setSearch] = useState('');
-  const [facultyFilter, setFacultyFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'' | VerificationStatus>('');
+  const [facultyFilter, setFacultyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | VerificationStatus>('all');
   const [selectedJury, setSelectedJury] = useState<User | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -52,8 +52,12 @@ export function GraderManagementPage() {
   const filteredJury = useMemo(() => {
     return juryWithStats.filter(j => {
       const byName = j.juryUser.name.toLowerCase().includes(search.toLowerCase());
-      const byFaculty = !facultyFilter || j.juryUser.facultyId === facultyFilter;
-      const byStatus = !statusFilter || j.pending > 0 && statusFilter === 'Pending' || j.completed > 0 && statusFilter === 'Approved' || j.rejected > 0 && statusFilter === 'Rejected';
+      const byFaculty = facultyFilter === 'all' || j.juryUser.facultyId === facultyFilter;
+      const byStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'Pending' && j.pending > 0) ||
+        (statusFilter === 'Approved' && j.completed > 0) ||
+        (statusFilter === 'Rejected' && j.rejected > 0);
       return byName && byFaculty && byStatus;
     });
   }, [juryWithStats, search, facultyFilter, statusFilter]);
@@ -94,7 +98,7 @@ export function GraderManagementPage() {
               <SelectValue placeholder="Filtrar por facultad" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas</SelectItem>
+              <SelectItem value="all">Todas</SelectItem>
               {Array.from(new Set(allUsers.map(u => u.facultyId).filter(Boolean) as string[])).map(fid => (
                 <SelectItem key={fid} value={fid}>{fid}</SelectItem>
               ))}
@@ -105,7 +109,7 @@ export function GraderManagementPage() {
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="Pending">Pendiente</SelectItem>
               <SelectItem value="Approved">Completo</SelectItem>
               <SelectItem value="Rejected">Rechazado</SelectItem>

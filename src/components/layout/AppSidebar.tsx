@@ -118,8 +118,11 @@ export function AppSidebar() {
                 }
               }
               
-              // Para admins, mostrar todo
+              // Para admins, mostrar todo excepto el item "Calificación" (los admins usarán Gestión de Calificaciones)
               if (item.adminOnly && !isAdmin) {
+                return null;
+              }
+              if (isAdmin && item.title === 'Calificación') {
                 return null;
               }
               const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);

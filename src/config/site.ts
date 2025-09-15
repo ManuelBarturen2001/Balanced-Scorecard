@@ -36,4 +36,11 @@ export const navItems: NavItemConfig[] = [
     icon: ClipboardCheck,
     adminOnly: true,
   }
+  ,
+  {
+    title: 'Gestión de Asignadores',
+    href: '/admin/assigners',
+    icon: Users,
+    adminOnly: true,
+  }
 ];

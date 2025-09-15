@@ -1,3 +1,16 @@
+// Obtener todos los usuarios con rol asignador
+export const getAssigners = async (): Promise<User[]> => {
+  const allUsers = await getCollection<User>('user');
+  return allUsers.filter(u => u.role === 'asignador');
+};
+
+// Obtener las asignaciones hechas por un asignador (requiere que AssignedIndicator tenga assignerId)
+// Si no tienes assignerId en tus datos, debes agregarlo al crear la asignación para trazabilidad real.
+export const getAssignerAssignments = async (assignerId: string): Promise<AssignedIndicator[]> => {
+  const allAssigned = await getCollection<AssignedIndicator>('assigned_indicator');
+  // Filtrar por assignerId (debes agregar este campo en tus asignaciones nuevas)
+  return allAssigned.filter((a: any) => a.assignerId === assignerId);
+};
 import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, Office, MockFile } from '@/lib/types';
 import { Library, Target, FileCheck, Users, DollarSign, BarChart2, Briefcase, Lightbulb } from 'lucide-react';
 import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
@@ -200,87 +213,7 @@ const getDueDate = (days: number): Date => {
   return date;
 };
 
-export const assignedIndicators: AssignedIndicator[] = [
-  {
-    id: 'assigned-ind-1',
-    userId: 'user-2', // Bob
-    indicatorId: 'ind-1', // Increase Customer Satisfaction
-    perspectiveId: 'persp-2', // Customer
-    assignedDate: new Date(new Date().setDate(new Date().getDate() - 30)),
-    assignedVerificationMethods: [
-      {
-        status: 'Submitted' as VerificationStatus,
-        submittedFile: { name: 'analisis_encuesta_q1.pdf', url: '#', uploadedAt: new Date(new Date().setDate(new Date().getDate() - 5)) },
-        dueDate: getDueDate(0),
-        notes: 'Análisis completo, pendiente de aprobación.',
-        name:'vm2'
-      },
-      {
-        status: 'Approved' as VerificationStatus,
-        submittedFile: { name: 'informe_satisfaccion_mensual_ene.docx', url: '#', uploadedAt: new Date(new Date().setDate(new Date().getDate() - 20)) },
-        dueDate: getDueDate(-15),
-        name: 'vm-1'
-      }
-    ],
-    jury:[],
-    overallStatus: 'Submitted' as VerificationStatus,
-  },
-  {
-    id: 'assigned-ind-2',
-    userId: 'user-2', // Bob
-    indicatorId: 'ind-2', // Reduce Operational Costs
-    perspectiveId: 'persp-1', // Financial
-    assignedDate: new Date(new Date().setDate(new Date().getDate() - 60)),
-    jury:[],
-    assignedVerificationMethods: [
-      {
-        status: 'Pending' as VerificationStatus,
-        dueDate: getDueDate(10),
-        notes: 'Recopilación de datos en curso.',
-        name: 'vm-1'
-      },
-      {
-        status: 'Overdue' as VerificationStatus,
-        dueDate: getDueDate(-5),
-        name: 'vm-1'
-      }
-    ],
-    overallStatus: 'Pending' as VerificationStatus,
-  },
-  {
-    id: 'assigned-ind-3',
-    userId: 'user-3', // Charlie
-    indicatorId: 'ind-3', // Enhance Employee Training Program
-    perspectiveId: 'persp-4', // Learning & Growth
-    assignedDate: new Date(new Date().setDate(new Date().getDate() - 10)),
-    jury:[],
-    assignedVerificationMethods: [
-      {
-        status: 'Approved' as VerificationStatus,
-        submittedFile: { name: 'carlos_capacitacion_avanzada.pdf', url: '#', uploadedAt: new Date(new Date().setDate(new Date().getDate() - 2)) },
-        dueDate: getDueDate(15),
-        name: 'vm-5'
-      }
-    ],
-    overallStatus: 'Approved' as VerificationStatus,
-  },
-  {
-    id: 'assigned-ind-4',
-    userId: 'user-1', // Alice (Admin)
-    indicatorId: 'ind-4', // Expand Market Share
-    perspectiveId: 'persp-1', // Financial
-    jury:[],
-    assignedDate: new Date(),
-    assignedVerificationMethods: [
-        {
-            status: 'Pending' as VerificationStatus,
-            dueDate: getDueDate(90),
-            name: 'vm-4'
-        }
-    ],
-    overallStatus: 'Pending' as VerificationStatus
-  }
-];
+
 
 // Helper function to get details by ID
 export const getUserById = async (id: string): Promise<User | undefined> => {

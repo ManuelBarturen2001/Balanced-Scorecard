@@ -7,14 +7,14 @@ import { getStorage } from "firebase/storage";
 
 // La configuración de Firebase de tu aplicación web
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  databaseURL: 'https://cmi-unmsm-default-rtdb.firebaseio.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyB5cPC2-mbUOTAIptWXvuFEvhNB9KlRH2I",
+  authDomain: "cmi-unmsm.firebaseapp.com",
+  databaseURL: "https://cmi-unmsm-default-rtdb.firebaseio.com",
+  projectId: "cmi-unmsm",
+  storageBucket: "cmi-unmsm.firebasestorage.app",
+  messagingSenderId: "13916791713",
+  appId: "1:13916791713:web:6febba791c9213eba2e1e0",
+  measurementId: "G-7D0LJFE1PX"
 };
 
 // Inicializa Firebase

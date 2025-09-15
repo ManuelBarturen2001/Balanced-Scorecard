@@ -374,7 +374,11 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
       // Asegurarnos de que no se vea afectada por la zona horaria local
       selectedDueDate.setMinutes(selectedDueDate.getMinutes() - selectedDueDate.getTimezoneOffset());
 
-      const newAssignedIndicator: Omit<AssignedIndicator, 'id'> = {
+      // Obtener el nombre del responsable
+      const responsableUser = users.find(u => u.id === targetUserId);
+      const responsableName = responsableUser?.name || '';
+
+      const newAssignedIndicator: Omit<AssignedIndicator, 'id'> & { assignerId: string } = {
         userId: targetUserId,
         indicatorId: selectedIndicatorId,
         perspectiveId: selectedPerspectiveId,
@@ -387,7 +391,9 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
           notes: ''
         })),
         overallStatus: 'Pending',
-        jury: selectedJuryMembers.map(member => member.id)
+        jury: selectedJuryMembers.map(member => member.id),
+        assignerId: user?.id || '',
+        responsableName: responsableName
       };
 
       const docId = await insertAssignedIndicator(newAssignedIndicator);

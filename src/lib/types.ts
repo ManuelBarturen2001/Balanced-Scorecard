@@ -110,6 +110,7 @@ export interface AssignedVerificationMethod {
 }
 
 export interface AssignedIndicator {
+  responsableName: string;
   id?: string;
   userId: string;
   indicatorId: string;

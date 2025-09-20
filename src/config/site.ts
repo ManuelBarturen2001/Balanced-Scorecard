@@ -42,5 +42,11 @@ export const navItems: NavItemConfig[] = [
     href: '/admin/assigners',
     icon: Users,
     adminOnly: true,
+  },
+  {
+    title: 'Gestión de Calificadores',
+    href: '/admin/graders',
+    icon: Users,
+    adminOnly: true,
   }
 ];

@@ -133,7 +133,7 @@ export interface NavItemConfig {
 export const statusTranslations: Record<VerificationStatus, string> = {
   Pending: "Pendiente",
   Submitted: "Presentado",
-  Approved: "Aprobado",
+  Approved: "Completado",
   Rejected: "Rechazado",
   Overdue: "Vencido",
 };

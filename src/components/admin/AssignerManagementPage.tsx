@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, AssignedIndicator, Faculty, Perspective, ProfessionalSchool, Office } from '@/lib/types';
+import { formatDateSpanish } from '@/lib/dateUtils';
 import { UserIcon } from 'lucide-react';
 import { getAssigners, getAllAssignedIndicators, getUserById, getFacultyById, getPerspectiveById, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllUsers } from '@/lib/data';
 
@@ -39,20 +40,7 @@ export default function AssignerManagementPage() {
   }, []);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Función para formatear fechas
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '-';
-      return new Intl.DateTimeFormat('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }).format(date);
-    } catch (error) {
-      return '-';
-    }
-  };
+  // Using centralized date utility function
 
   // Función para determinar la variante del Badge según el estado
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
@@ -128,7 +116,7 @@ export default function AssignerManagementPage() {
         school: school?.name || '-',
         office: office?.name || 'No tiene oficina',
         jurado: juradoNombres,
-        dueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString() : '-',
+        dueDate: a.dueDate ? formatDateSpanish(a.dueDate) : '-',
         status: a.overallStatus || 'Pendiente',
       };
     }));
@@ -340,7 +328,7 @@ export default function AssignerManagementPage() {
                         <td className="px-4 py-3">{asig.faculty || 'No tiene facultad'}</td>
                         <td className="px-4 py-3">{asig.office || 'No tiene oficina'}</td>
                         <td className="px-4 py-3 max-w-[200px] truncate" title={asig.jurado}>{asig.jurado}</td>
-                        <td className="px-4 py-3">{asig.dueDate ? formatDate(asig.dueDate) : '-'}</td>
+                        <td className="px-4 py-3">{asig.dueDate ? formatDateSpanish(asig.dueDate) : '-'}</td>
                         <td className="px-4 py-3">
                           <Badge variant={getStatusVariant(asig.status)}>{asig.status}</Badge>
                         </td>

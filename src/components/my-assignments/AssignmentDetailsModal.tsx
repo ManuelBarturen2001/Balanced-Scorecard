@@ -9,8 +9,7 @@ import { getIndicatorById, getPerspectiveById } from '@/lib/data';
 import type { AssignedIndicator, Indicator, Perspective, VerificationStatus } from '@/lib/types';
 import { statusTranslations } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { format, isPast } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, isDatePast } from '@/lib/dateUtils';
 import { AlertCircle, Briefcase, CheckCircle, Clock, FileText, Info, Paperclip, X, Eye, Edit } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -73,7 +72,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
 
   let overallStatus = indicator.overallStatus || 'Pending';
   //@ts-ignore
-  if (overallStatus === 'Pending' && indicator.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && vm.status === 'Pending')) {
+  if (overallStatus === 'Pending' && indicator.assignedVerificationMethods.some(vm => vm.dueDate && isDatePast(vm.dueDate) && vm.status === 'Pending')) {
       overallStatus = 'Overdue';
   }
   const OverallStatusIcon = statusIconsModal[overallStatus] || Info;
@@ -124,7 +123,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
             {indicator.assignedVerificationMethods.map((vm,index) => {
               let currentVmStatus = vm.status;
               //@ts-ignore
-              if (vm.status === 'Pending' && vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000))) {
+              if (vm.status === 'Pending' && vm.dueDate && isDatePast(vm.dueDate)) {
                 currentVmStatus = 'Overdue';
               }
               const VmStatusIcon = statusIconsModal[currentVmStatus] || Info;
@@ -139,36 +138,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                   </div>
                   {vm.dueDate && (
                   <p className="text-xs text-muted-foreground">
-                    Vence: {(() => {
-                      try {
-                        const date = vm.dueDate as any;
-                        if (!date) return 'Fecha no disponible';
-                        
-                        let dateObj: Date;
-                        if (date.seconds) {
-                          dateObj = new Date(date.seconds * 1000);
-                        } else if (date instanceof Date) {
-                          dateObj = date;
-                        } else if (typeof date === 'object' && date.toDate) {
-                          dateObj = date.toDate();
-                        } else if (typeof date === 'number') {
-                          dateObj = new Date(date);
-                        } else if (typeof date === 'string') {
-                          dateObj = new Date(date);
-                        } else {
-                          dateObj = new Date(date);
-                        }
-                        
-                        if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
-                          return 'Fecha no disponible';
-                        }
-                        
-                        return format(dateObj, 'dd-MMM-yyyy', { locale: es });
-                      } catch (error) {
-                        console.error('Error formatting date:', error);
-                        return 'Fecha no disponible';
-                      }
-                    })()}
+                    Vence: {formatDate(vm.dueDate)}
                   </p>
                 )}
                   {vm.submittedFile && (

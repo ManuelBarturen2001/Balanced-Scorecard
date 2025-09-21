@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { UploadCloud, Eye, CheckCircle, AlertCircle, Clock, FileText, Paperclip, Info, Check, X, FileUp, Edit } from 'lucide-react';
-import { format, parseISO, isPast } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, isDatePast, safeParseDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import React, { useRef, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -85,43 +84,7 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
     }
   }, [verificationMethod]);
 
-  const formatDate = (date: any): string => {
-    if (!date) return 'Fecha no disponible';
-    
-    try {
-      let dateObj: Date;
-      
-      // Manejar diferentes tipos de fechas
-      if (date.seconds) {
-        // Firestore timestamp
-        dateObj = new Date(date.seconds * 1000);
-      } else if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'object' && date.toDate) {
-        // Firestore Timestamp object
-        dateObj = date.toDate();
-      } else if (typeof date === 'number') {
-        // Timestamp numérico
-        dateObj = new Date(date);
-      } else if (typeof date === 'string') {
-        // String de fecha (YYYY-MM-DD o cualquier formato)
-        dateObj = new Date(date);
-      } else {
-        // Intentar crear Date de cualquier otro valor
-        dateObj = new Date(date);
-      }
-      
-      // Verificar si la fecha es válida
-      if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
-        return 'Fecha no disponible';
-      }
-      
-      return format(dateObj, 'dd-MMM-yyyy', { locale: es });
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Fecha no disponible';
-    }
-  };
+  // Using the centralized date utility function
 
   const calculateOverallStatus = (methods: AssignedVerificationMethod[]): VerificationStatus => {
     if (methods.length === 0) return 'Pending';
@@ -135,32 +98,8 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
   };
 
   let currentStatus = localMethod.status;
-  //@ts-ignore
-  if (localMethod.status === 'Pending' && localMethod.dueDate) {
-    try {
-      let dueDateObj: Date;
-      const dueDate = localMethod.dueDate as any;
-      
-      if (dueDate.seconds) {
-        dueDateObj = new Date(dueDate.seconds * 1000);
-      } else if (dueDate instanceof Date) {
-        dueDateObj = dueDate;
-      } else if (typeof dueDate === 'object' && dueDate.toDate) {
-        dueDateObj = dueDate.toDate();
-      } else if (typeof dueDate === 'number') {
-        dueDateObj = new Date(dueDate);
-      } else if (typeof dueDate === 'string') {
-        dueDateObj = new Date(dueDate);
-      } else {
-        dueDateObj = new Date(dueDate);
-      }
-      
-      if (!isNaN(dueDateObj.getTime()) && dueDateObj.getTime() !== 0 && isPast(dueDateObj)) {
-        currentStatus = 'Overdue';
-      }
-    } catch (error) {
-      console.error('Error checking due date:', error);
-    }
+  if (localMethod.status === 'Pending' && localMethod.dueDate && isDatePast(localMethod.dueDate)) {
+    currentStatus = 'Overdue';
   }
   const StatusIcon = statusIcons[currentStatus] || Info;
 
@@ -202,12 +141,12 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
     try {
       const methodName = verificationMethod?.name || 'Método de Verificación';
       const currentDate = new Date();
-      const fileName = `${methodName.substring(0, 4)}_${format(currentDate, 'dd-MMM-yyyy HH:mm:ss')}`;
+      const fileName = `${methodName.substring(0, 4)}_${formatDate(currentDate, 'dd-MMM-yyyy HH:mm:ss')}`;
       
                            const submittedFile = {
           name: fileName,
           url: urlInput.trim(),
-          uploadedAt: new Date().toLocaleDateString('en-CA'), // Usar fecha local en formato YYYY-MM-DD
+          uploadedAt: new Date().toISOString(), // Usar ISO string para consistencia
           size: Math.floor(Math.random() * 1000000) + 10000, // Tamaño inventado entre 10KB y 1MB
           type: 'url'
         };

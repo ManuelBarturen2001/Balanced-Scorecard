@@ -6,8 +6,7 @@ import { statusTranslations } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UploadCloud, Eye, CheckCircle, AlertCircle, Clock, FileText, Paperclip, Info, Upload, RefreshCw, History, Download, Edit } from 'lucide-react';
-import { format, parseISO, isPast } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, isDatePast, safeParseDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import React, { useRef, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -65,10 +64,7 @@ export function VerificationMethodItem({
 
   // Verificar si la fecha está vencida
   let currentStatus = localMethod.status;
-  const isDueDatePassed = localMethod.dueDate && isPast(new Date(
-    // @ts-ignore
-    localMethod.dueDate?.seconds ? localMethod.dueDate.seconds * 1000 : localMethod.dueDate
-  ));
+  const isDueDatePassed = localMethod.dueDate && isDatePast(localMethod.dueDate);
   
   if (localMethod.status === 'Pending' && isDueDatePassed) {
     currentStatus = 'Overdue';
@@ -201,43 +197,7 @@ export function VerificationMethodItem({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (date: any): string => {
-    if (!date) return 'Fecha no disponible';
-    
-    try {
-      let dateObj: Date;
-      
-      // Manejar diferentes tipos de fechas
-      if (date.seconds) {
-        // Firestore timestamp
-        dateObj = new Date(date.seconds * 1000);
-      } else if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'object' && date.toDate) {
-        // Firestore Timestamp object
-        dateObj = date.toDate();
-      } else if (typeof date === 'number') {
-        // Timestamp numérico
-        dateObj = new Date(date);
-      } else if (typeof date === 'string') {
-        // String de fecha
-        dateObj = new Date(date);
-      } else {
-        // Intentar crear Date de cualquier otro valor
-        dateObj = new Date(date);
-      }
-      
-      // Verificar si la fecha es válida
-      if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
-        return 'Fecha no disponible';
-      }
-      
-      return format(dateObj, 'dd-MMM-yyyy HH:mm:ss', { locale: es });
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Fecha no disponible';
-    }
-  };
+  // Using the centralized date utility function
 
   return (
     <>
@@ -266,7 +226,7 @@ export function VerificationMethodItem({
                 "font-medium ml-1", 
                 isDueDatePassed ? 'text-destructive' : 'text-foreground'
               )}>
-                {formatDate(localMethod.dueDate)}
+                {formatDate(localMethod.dueDate, 'dd-MMM-yyyy HH:mm:ss')}
               </span>
               {isDueDatePassed && (
                 <span className="text-destructive font-medium ml-2">(Vencido)</span>
@@ -293,7 +253,7 @@ export function VerificationMethodItem({
                 </div>
                 {localMethod.submittedFile.uploadedAt && (
                   <p className="text-xs text-muted-foreground">
-                    Subido: {formatDate(localMethod.submittedFile.uploadedAt)}
+                    Subido: {formatDate(localMethod.submittedFile.uploadedAt, 'dd-MMM-yyyy HH:mm:ss')}
                   </p>
                 )}
               </div>
@@ -367,7 +327,7 @@ export function VerificationMethodItem({
                       </div>
                     </div>
                     <p className="text-muted-foreground mt-1">
-                      {formatDate(file.uploadedAt)}
+                      {formatDate(file.uploadedAt, 'dd-MMM-yyyy HH:mm:ss')}
                       {file.size && ` • ${formatFileSize(file.size)}`}
                     </p>
                   </div>

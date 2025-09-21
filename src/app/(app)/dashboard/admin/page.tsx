@@ -29,6 +29,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { AssignedIndicator, User, Faculty } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties } from '@/lib/data';
+import { formatDateSpanish } from '@/lib/dateUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -234,7 +235,7 @@ export default function AdminDashboard() {
   const generatePDFReport = () => {
     const reportData = {
       title: 'Reporte de Administrador',
-      date: new Date().toLocaleDateString(),
+      date: formatDateSpanish(new Date()),
       stats: {
         total: totalAssignments,
         completed: completedAssignments,
@@ -335,7 +336,7 @@ export default function AdminDashboard() {
   const generateExcelReport = () => {
     const csvContent = [
       ['Reporte de Administrador', ''],
-      ['Fecha', new Date().toLocaleDateString()],
+      ['Fecha', formatDateSpanish(new Date())],
       [''],
       ['Estadísticas Generales'],
       ['Total Asignaciones', totalAssignments],
@@ -368,7 +369,7 @@ export default function AdminDashboard() {
           getStudentName(assignment.userId),
           getFacultyName(assignment.userId),
           statusTranslations[assignment.overallStatus || 'Pending'],
-          new Date(assignment.assignedDate).toLocaleDateString()
+          formatDateSpanish(assignment.assignedDate)
         ])
     ].map(row => row.join(',')).join('\n');
 
@@ -729,7 +730,7 @@ export default function AdminDashboard() {
                               {getStudentName(assignment.userId)}
                             </p>
                             <p className="text-sm text-red-600">
-                              {getFacultyName(assignment.userId)} • Vencida el {assignment.dueDate?.toLocaleDateString()}
+                              {getFacultyName(assignment.userId)} • Vencida el {assignment.dueDate ? formatDateSpanish(assignment.dueDate) : 'Fecha no disponible'}
                             </p>
                           </div>
                         </div>

@@ -22,8 +22,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, safeParseDate } from '@/lib/dateUtils';
 import type { AssignedIndicator, AssignedVerificationMethod, MockFile, VerificationStatus } from '@/lib/types';
 
 interface UserAssignmentDetailsProps {
@@ -107,43 +106,7 @@ export function UserAssignmentDetails({ assignment, onBack, onFileUpload }: User
     return assignment.assignedVerificationMethods.find(method => method.name === methodName);
   };
 
-  const formatDate = (date: any, formatStr: string = 'dd/MM/yyyy'): string => {
-    if (!date) return 'Fecha no disponible';
-    
-    try {
-      let dateObj: Date;
-      
-      // Manejar diferentes tipos de fechas
-      if (date.seconds) {
-        // Firestore timestamp
-        dateObj = new Date(date.seconds * 1000);
-      } else if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'object' && date.toDate) {
-        // Firestore Timestamp object
-        dateObj = date.toDate();
-      } else if (typeof date === 'number') {
-        // Timestamp numérico
-        dateObj = new Date(date);
-      } else if (typeof date === 'string') {
-        // String de fecha
-        dateObj = new Date(date);
-      } else {
-        // Intentar crear Date de cualquier otro valor
-        dateObj = new Date(date);
-      }
-      
-      // Verificar si la fecha es válida
-      if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
-        return 'Fecha no disponible';
-      }
-      
-      return format(dateObj, 'dd-MMM-yyyy', { locale: es });
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Fecha no disponible';
-    }
-  };
+  // Using the centralized date utility function
 
   return (
     <div className="container mx-auto py-6 space-y-6">

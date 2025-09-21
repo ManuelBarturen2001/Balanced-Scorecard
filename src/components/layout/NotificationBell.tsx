@@ -13,6 +13,7 @@ import { Bell, AlertCircle, CheckCircle, Info, XCircle, Trash2 } from 'lucide-re
 import { useAuth } from '@/hooks/useAuth';
 import { Notification } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { getRelativeTime, formatDateSpanish } from '@/lib/dateUtils';
 import { 
   markNotificationAsRead, 
   markAllNotificationsAsRead, 
@@ -89,19 +90,7 @@ export function NotificationBell() {
     }
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Ahora';
-    if (minutes < 60) return `Hace ${minutes} min`;
-    if (hours < 24) return `Hace ${hours} h`;
-    if (days < 7) return `Hace ${days} días`;
-    return new Date(date).toLocaleDateString();
-  };
+  // Using centralized date utility function
 
   const handleNotificationClick = async (notification: Notification) => {
     // Marcar como leída
@@ -176,7 +165,7 @@ export function NotificationBell() {
                             <h5 className="font-medium text-sm">{notification.title}</h5>
                             <div className="flex items-center gap-1">
                               <span className="text-xs opacity-70">
-                                {formatDate(notification.createdAt)}
+                                {getRelativeTime(notification.createdAt)}
                               </span>
                               <Button
                                 variant="ghost"

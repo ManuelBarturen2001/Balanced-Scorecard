@@ -141,12 +141,12 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
     try {
       const methodName = verificationMethod?.name || 'Método de Verificación';
       const currentDate = new Date();
-      const fileName = `${methodName.substring(0, 4)}_${format(currentDate, 'dd-MMM-yyyy HH:mm:ss')}`;
+      const fileName = `${methodName.substring(0, 4)}_${formatDate(currentDate, 'dd-MMM-yyyy HH:mm:ss')}`;
       
                            const submittedFile = {
           name: fileName,
           url: urlInput.trim(),
-          uploadedAt: new Date().toLocaleDateString('en-CA'), // Usar fecha local en formato YYYY-MM-DD
+          uploadedAt: new Date().toISOString(), // Usar ISO string para consistencia
           size: Math.floor(Math.random() * 1000000) + 10000, // Tamaño inventado entre 10KB y 1MB
           type: 'url'
         };

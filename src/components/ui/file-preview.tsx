@@ -15,8 +15,7 @@ import {
   ExternalLink,
   FileCheck
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate } from '@/lib/dateUtils';
 import type { MockFile } from '@/lib/types';
 
 interface FilePreviewProps {
@@ -56,20 +55,7 @@ export function FilePreview({ file, isOpen, onClose, onDownload }: FilePreviewPr
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (date: any): string => {
-    if (!date) return '';
-    
-    let dateObj: Date;
-    if (date.seconds) {
-      dateObj = new Date(date.seconds * 1000);
-    } else if (date instanceof Date) {
-      dateObj = date;
-    } else {
-      dateObj = new Date(date);
-    }
-    
-    return format(dateObj, 'dd-MMM-yyyy HH:mm:ss', { locale: es });
-  };
+  // Using centralized date utility function
 
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -123,7 +109,7 @@ export function FilePreview({ file, isOpen, onClose, onDownload }: FilePreviewPr
                 <DialogDescription asChild>
                     <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                     {file.size && <span>{formatFileSize(file.size)}</span>}
-                    {file.uploadedAt && <span>Subido: {formatDate(file.uploadedAt)}</span>}
+                    {file.uploadedAt && <span>Subido: {formatDate(file.uploadedAt, 'dd-MMM-yyyy HH:mm:ss')}</span>}
                     {file.type && (
                         <Badge variant="outline" className="text-xs">{file.type}</Badge>
                     )}

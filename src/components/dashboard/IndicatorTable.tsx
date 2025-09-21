@@ -9,8 +9,7 @@ import { getIndicatorById, getPerspectiveById } from '@/lib/data';
 import type { AssignedIndicator, AssignedVerificationMethod, Indicator, Perspective, VerificationStatus } from '@/lib/types';
 import { statusTranslations } from '@/lib/types'; // Import translations
 import { cn } from '@/lib/utils';
-import { format, isPast } from 'date-fns';
-import { es } from 'date-fns/locale'; // Import Spanish locale for date-fns
+import { formatDate, isDatePast } from '@/lib/dateUtils';
 import { AlertCircle, CheckCircle, Clock, Eye, FileText, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -47,7 +46,7 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
   console.log(vm)
   let currentStatus = vm.status;
   //@ts-ignore
-  if (vm.status === 'Pending' && vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000))) {
+  if (vm.status === 'Pending' && vm.dueDate && isDatePast(vm.dueDate)) {
     currentStatus = 'Overdue';
   }
   const Icon = statusIcons[currentStatus] || AlertCircle;
@@ -66,36 +65,7 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
       
       {
       //@ts-ignore
-      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{(() => {
-        try {
-          const date = vm.dueDate as any;
-          if (!date) return 'Fecha no disponible';
-          
-          let dateObj: Date;
-          if (date.seconds) {
-            dateObj = new Date(date.seconds * 1000);
-          } else if (date instanceof Date) {
-            dateObj = date;
-          } else if (typeof date === 'object' && date.toDate) {
-            dateObj = date.toDate();
-          } else if (typeof date === 'number') {
-            dateObj = new Date(date);
-          } else if (typeof date === 'string') {
-            dateObj = new Date(date);
-          } else {
-            dateObj = new Date(date);
-          }
-          
-          if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
-            return 'Fecha no disponible';
-          }
-          
-          return format(dateObj, 'dd-MMM-yyyy', { locale: es });
-        } catch (error) {
-          console.error('Error formatting date:', error);
-          return 'Fecha no disponible';
-        }
-      })()}</span></p>
+      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{formatDate(vm.dueDate)}</span></p>
       }
       
       {vm.submittedFile && (
@@ -105,7 +75,7 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
             <span className="font-medium text-foreground">{vm.submittedFile.name}</span>
             {
               //@ts-ignore
-             vm.submittedFile.uploadedAt && <span className="text-muted-foreground text-xs block">Subido: {format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span>
+             vm.submittedFile.uploadedAt && <span className="text-muted-foreground text-xs block">Subido: {formatDate(vm.submittedFile.uploadedAt, 'dd-MMM-yyyy HH:mm:ss')}</span>
             }
           </div>
           <Button variant="outline" size="sm" className="h-auto py-1 px-2 ml-auto text-xs" onClick={() => alert(`Visualizando ${vm.submittedFile?.name}`)}>
@@ -209,7 +179,7 @@ export function IndicatorTable({ assignedIndicators }: IndicatorTableProps) {
 
             let overallStatus = assignedInd.overallStatus || 'Pending';
             //@ts-ignore
-            if (overallStatus === 'Pending' && assignedInd.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && vm.status === 'Pending')) {
+            if (overallStatus === 'Pending' && assignedInd.assignedVerificationMethods.some(vm => vm.dueDate && isDatePast(vm.dueDate) && vm.status === 'Pending')) {
                 overallStatus = 'Overdue';
             }
             const OverallStatusIcon = statusIcons[overallStatus] || AlertCircle;

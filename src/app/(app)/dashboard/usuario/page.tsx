@@ -19,6 +19,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { AssignedIndicator, VerificationStatus } from '@/lib/types';
 import { getAllAssignedIndicators } from '@/lib/data';
+import { formatDateSpanish } from '@/lib/dateUtils';
 
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -209,7 +210,7 @@ export default function UsuarioDashboard() {
                         <div>
                           <p className="font-medium">Asignación #{assignment.id}</p>
                           <p className="text-sm text-muted-foreground">
-                            Asignada el {new Date(assignment.assignedDate).toLocaleDateString()}
+                            Asignada el {formatDateSpanish(assignment.assignedDate)}
                           </p>
                         </div>
                       </div>
@@ -259,7 +260,7 @@ export default function UsuarioDashboard() {
                           <div>
                             <p className="font-medium">Asignación #{assignment.id}</p>
                             <p className="text-sm text-red-600">
-                              Vencida el {assignment.dueDate?.toLocaleDateString()}
+                              Vencida el {assignment.dueDate ? formatDateSpanish(assignment.dueDate) : 'Fecha no disponible'}
                             </p>
                           </div>
                         </div>

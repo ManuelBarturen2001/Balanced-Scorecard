@@ -4,6 +4,7 @@ import type { AssignedIndicator } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDateSpanish } from '@/lib/dateUtils';
 
 interface AssignmentCardProps {
   assignedIndicator: AssignedIndicator;
@@ -53,7 +54,7 @@ export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload,
     const hasOffice = officeName && !officeName.includes('Sin oficina');
     
     // Formatear fecha de vencimiento
-    const dueDate = assignedIndicator.dueDate ? new Date(assignedIndicator.dueDate).toLocaleDateString('es-ES', {
+    const dueDate = assignedIndicator.dueDate ? formatDateSpanish(assignedIndicator.dueDate, {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -98,7 +99,7 @@ export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload,
   } else {
     // Vista para usuarios normales
     const indicatorName = assignedIndicator.indicatorId || 'Indicador sin nombre';
-    const dueDate = assignedIndicator.dueDate ? new Date(assignedIndicator.dueDate).toLocaleDateString() : 'Sin fecha límite';
+    const dueDate = assignedIndicator.dueDate ? formatDateSpanish(assignedIndicator.dueDate) : 'Sin fecha límite';
     
     // Calcular progreso
     const totalMethods = assignedIndicator.assignedVerificationMethods?.length || 0;

@@ -13,8 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Clock, FileText, Paperclip, Save, Info, Users, FileCheck, ChevronDown, Eye } from 'lucide-react';
-import { format, parseISO, isPast } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, isDatePast } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { FilePreview } from '@/components/ui/file-preview';
 
@@ -131,7 +130,7 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
   
   let overallStatus = assignment.overallStatus || 'Pending';
   //@ts-ignore
-  if (overallStatus === 'Pending' && assignment.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && vm.status === 'Pending')) {
+  if (overallStatus === 'Pending' && assignment.assignedVerificationMethods.some(vm => vm.dueDate && isDatePast(vm.dueDate) && vm.status === 'Pending')) {
       overallStatus = 'Overdue';
   }
   const OverallStatusIcon = statusIcons[overallStatus] || Info;
@@ -189,7 +188,7 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
               const methodInfo = getMethodInfo(method.name);
               let currentVmStatus = method.status; 
               //@ts-ignore
-              if (method.status === 'Pending' && method.dueDate && isPast(new Date(method.dueDate?.seconds * 1000))) {
+              if (method.status === 'Pending' && method.dueDate && isDatePast(method.dueDate)) {
                   currentVmStatus = 'Overdue';
               }
               const VmStatusIcon = statusIcons[currentVmStatus] || Info;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { saveUploadedFile, sanitizeUserName } from '@/lib/fileUtils';
 import { getCollectionById, updateDocument } from '@/lib/firebase-functions';
 import { getUserById } from '@/lib/data';
+import { safeParseDate } from '@/lib/dateUtils';
 import type { AssignedIndicator, AssignedVerificationMethod, MockFile, VerificationStatus } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
 
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si la fecha ha vencido
     const now = new Date();
-    const dueDate = verificationMethod.dueDate ? new Date(verificationMethod.dueDate) : null;
+    const dueDate = verificationMethod.dueDate ? safeParseDate(verificationMethod.dueDate) : null;
     
     if (dueDate && now > dueDate && verificationMethod.status !== 'Approved' && verificationMethod.status !== 'Rejected') {
       return NextResponse.json(
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       originalName: file.name,
       fileName: uploadResult.fileName!,
       url: fileUrl, // ✅ URL corregida usando filePath
-      uploadedAt: new Date().toLocaleDateString('en-CA'), // Usar fecha local en formato YYYY-MM-DD
+      uploadedAt: new Date().toISOString(), // Usar ISO string para consistencia
       size: uploadResult.size!,
       type: file.type
     };

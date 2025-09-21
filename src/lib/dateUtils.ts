@@ -1,5 +1,5 @@
 import { format, parse, parseISO, isPast, isValid } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { es } from 'date-fns/locale/es';
 
 /**
  * Utility functions for handling dates in the system

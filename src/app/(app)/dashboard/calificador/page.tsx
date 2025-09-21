@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { AssignedIndicator, VerificationStatus, User } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers } from '@/lib/data';
+import { formatDateSpanish } from '@/lib/dateUtils';
 
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -246,7 +247,7 @@ export default function CalificadorDashboard() {
                               Asignación #{assignment.id} • {getFacultyName(assignment.userId)}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Presentado el {new Date().toLocaleDateString()}
+                              Presentado el {formatDateSpanish(new Date())}
                             </p>
                           </div>
                         </div>
@@ -300,7 +301,7 @@ export default function CalificadorDashboard() {
                               {getStudentName(assignment.userId)}
                             </p>
                             <p className="text-sm text-red-600">
-                              Vencida el {assignment.dueDate?.toLocaleDateString()}
+                              Vencida el {assignment.dueDate ? formatDateSpanish(assignment.dueDate) : 'Fecha no disponible'}
                             </p>
                           </div>
                         </div>
@@ -401,7 +402,7 @@ export default function CalificadorDashboard() {
                             Asignación #{assignment.id} • {getFacultyName(assignment.userId)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Asignada el {new Date(assignment.assignedDate).toLocaleDateString()}
+                            Asignada el {formatDateSpanish(assignment.assignedDate)}
                           </p>
                         </div>
                       </div>

@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { AssignedIndicator, User, Faculty, ProfessionalSchool, Office, Perspective } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllPerspectives } from '@/lib/data';
+import { formatDateSpanish } from '@/lib/dateUtils';
 
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -117,7 +118,7 @@ export default function AsignadorDashboard() {
       date = new Date(assignment.assignedDate);
     }
     
-    const dateString = date.toLocaleDateString();
+    const dateString = formatDateSpanish(date);
     if (!acc[dateString]) {
       acc[dateString] = [];
     }
@@ -187,15 +188,7 @@ export default function AsignadorDashboard() {
     return names.length ? names.join(', ') : 'Sin jurado asignado';
   };
 
-  const formatDueDate = (dueDate: any) => {
-    if (!dueDate) return 'Sin fecha límite';
-    const date = new Date(dueDate);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  // Using centralized date utility function
 
   const getLocationInfo = (userId: string) => {
     const facultyName = getFacultyName(userId);
@@ -360,7 +353,7 @@ export default function AsignadorDashboard() {
                             <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                             <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                             <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                            <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                            <p><span className="font-medium">Fecha de Vencimiento:</span> {assignment.dueDate ? formatDateSpanish(assignment.dueDate, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin fecha límite'}</p>
                           </div>
                         </div>
                         
@@ -426,7 +419,7 @@ export default function AsignadorDashboard() {
                                     <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                                     <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                                     <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                                    <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                                    <p><span className="font-medium">Fecha de Vencimiento:</span> {assignment.dueDate ? formatDateSpanish(assignment.dueDate, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin fecha límite'}</p>
                                   </div>
                                 </div>
                                 
@@ -487,7 +480,7 @@ export default function AsignadorDashboard() {
                               <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                               <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                               <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                              <p><span className="font-medium">Fecha de Vencimiento:</span> {assignment.dueDate ? formatDateSpanish(assignment.dueDate, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin fecha límite'}</p>
                             </div>
                           </div>
                           
@@ -547,7 +540,7 @@ export default function AsignadorDashboard() {
                               <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                               <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                               <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                              <p><span className="font-medium">Fecha de Vencimiento:</span> {assignment.dueDate ? formatDateSpanish(assignment.dueDate, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin fecha límite'}</p>
                             </div>
                           </div>
                           

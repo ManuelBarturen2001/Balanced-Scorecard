@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, UploadCloud, CheckCircle, AlertCircle, Clock, FileText, Info, Briefcase } from 'lucide-react';
-import { format, parseISO, isPast } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, isDatePast, safeParseDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { UserVerificationMethodItem } from './UserVerificationMethodItem';
 import { useState, useEffect } from 'react';
@@ -103,31 +102,9 @@ export function UserAssignmentCard({ assignedIndicator, onViewDetails, onFileUpl
   }
   console.log(assignedIndicator.overallStatus)
   let overallStatus = assignedIndicator.overallStatus || 'Pending';
-  //@ts-ignore
-  if (overallStatus === 'Pending' && assignedIndicator.assignedVerificationMethods.some(vm => {
-    try {
-      if (!vm.dueDate) return false;
-      let dateObj: Date;
-      const dueDate = vm.dueDate as any;
-      if (dueDate.seconds) {
-        dateObj = new Date(dueDate.seconds * 1000);
-      } else if (dueDate instanceof Date) {
-        dateObj = dueDate;
-      } else if (typeof dueDate === 'object' && dueDate.toDate) {
-        dateObj = dueDate.toDate();
-      } else if (typeof dueDate === 'number') {
-        dateObj = new Date(dueDate);
-      } else if (typeof dueDate === 'string') {
-        dateObj = new Date(dueDate);
-      } else {
-        dateObj = new Date(dueDate);
-      }
-      return !isNaN(dateObj.getTime()) && dateObj.getTime() !== 0 && isPast(dateObj) && vm.status === 'Pending';
-    } catch (error) {
-      console.error('Error checking due date:', error);
-      return false;
-    }
-  })) {
+  if (overallStatus === 'Pending' && assignedIndicator.assignedVerificationMethods.some(vm => 
+    vm.dueDate && isDatePast(vm.dueDate) && vm.status === 'Pending'
+  )) {
       overallStatus = 'Overdue';
   }
   const OverallStatusIcon = statusIcons[overallStatus] || Info;

@@ -141,7 +141,7 @@ export default function AdminEditUserPage() {
     const config = roleConfig[role];
     setRoleType(config.type);
     if (config.type === 'variante') {
-      setAvailableRoles(config.availableRoles);
+      setAvailableRoles(config.availableRoles as UserRole[]);
     } else {
       setAvailableRoles([role]);
     }
@@ -348,7 +348,7 @@ export default function AdminEditUserPage() {
                   <div className="space-y-2">
                     <Label>Roles Disponibles</Label>
                     <div className="space-y-2">
-                      {['usuario', 'calificador'].map((availableRole) => (
+                      {['responsable', 'calificador'].map((availableRole) => (
                         <div key={availableRole} className="flex items-center space-x-2">
                           <Checkbox 
                             id={availableRole} 
@@ -362,7 +362,7 @@ export default function AdminEditUserPage() {
                             }}
                           />
                           <Label htmlFor={availableRole} className="text-sm">
-                            {availableRole === 'usuario' && 'Usuario'}
+                            {availableRole === 'responsable' && 'Responsable'}
                             {availableRole === 'calificador' && 'Calificador'}
                           </Label>
                         </div>

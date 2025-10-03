@@ -272,7 +272,7 @@ export default function ProfilePage() {
                   <Label>Rol</Label>
                   <div className="flex items-center space-x-2 text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
                       <ShieldQuestion className="h-5 w-5 text-primary" />
-                      <span>{user.role === 'admin' ? 'Administrador' : 'Usuario'} (No editable)</span>
+                      <span>{user.role === 'admin' ? 'Administrador' : 'Responsable'} (No editable)</span>
                   </div>
               </div>
             </CardContent>

@@ -18,7 +18,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isAsignador: boolean;
   isCalificador: boolean;
-  isUsuario: boolean;
+  isResponsable: boolean;
   loading: boolean;
 }
 
@@ -61,9 +61,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log(querySnapshot.docs[0].id)
       const userData = {id:querySnapshot.docs[0].id,...querySnapshot.docs[0].data()} as User;
       
-      // Compatibilidad con el rol "user" - convertirlo a "usuario"
-      if (userData.role === 'user') {
-        userData.role = 'usuario';
+      // Compatibilidad con el rol "user" - convertirlo a "responsable"
+      if (userData.role === 'responsable') {
+        userData.role = 'responsable';
       }
       
       // Asegurar que el usuario tenga los campos por defecto si no existen
@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isAdmin = user?.role === 'admin';
   const isAsignador = user?.role === 'asignador';
   const isCalificador = user?.role === 'calificador';
-  const isUsuario = user?.role === 'usuario';
+  const isResponsable = user?.role === 'responsable';
 
   const updateUserProfile = useCallback(async (updatedData: Partial<Omit<User, 'id' | 'role'> | { role: string }>) => {
     if (!user) throw new Error("Usuario no autenticado");
@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { updateUser } = await import('@/lib/data');
     
     // Actualizar en Firebase
-    await updateUser(user.id, updatedData);
+    await updateUser(user.id, updatedData as Partial<User>);
     
     // Actualizar estado local
     const updatedUser = { ...user, ...updatedData };
@@ -142,7 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAdmin, 
         isAsignador,
         isCalificador,
-        isUsuario,
+        isResponsable,
         loading, 
         updateUserProfile, 
         changePassword, 

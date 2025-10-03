@@ -82,7 +82,7 @@ export function NotificationBell() {
       await deleteNotification(user.id, notificationId);
       
       // Actualizar el estado local
-      const updatedNotifications = user.notifications.filter(n => n.id !== notificationId);
+      const updatedNotifications = user.notifications.filter(n => n.id !== notificationId) ;
       await updateUserProfile({ notifications: updatedNotifications });
     } catch (error) {
       console.error('Error deleting notification:', error);

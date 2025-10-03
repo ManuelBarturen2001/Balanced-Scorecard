@@ -15,14 +15,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/lib/types';
 
 const roleIcons = {
-  usuario: User,
+  responsable: User,
   calificador: FileCheck,
   asignador: Users,
   admin: Settings,
 };
 
 const roleLabels = {
-  usuario: 'Usuario',
+  responsable: 'Responsable',
   calificador: 'Calificador',
   asignador: 'Asignador',
   admin: 'Administrador',
@@ -44,12 +44,12 @@ export function RoleSwitcher() {
     console.log('Changing role from', user.role, 'to', newRole);
     setIsLoading(true);
     try {
-      await updateUserProfile({ role: newRole });
+      await updateUserProfile({ availableRoles: [newRole] });
       console.log('Role updated in Firebase and local state');
       
       // Redirigir al dashboard correspondiente al nuevo rol
       switch (newRole) {
-        case 'usuario':
+        case 'responsable':
           router.push('/dashboard/usuario');
           break;
         case 'calificador':

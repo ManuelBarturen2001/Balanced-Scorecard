@@ -37,7 +37,7 @@ interface UserManagementTableProps {
 }
 
 const roleTranslations: Record<UserRole, string> = {
-  usuario: "Usuario",
+  responsable: "Responsable",
   calificador: "Calificador",
   asignador: "Asignador",
   admin: "Administrador",
@@ -49,7 +49,7 @@ const roleTypeTranslations: Record<RoleType, string> = {
 };
 
 const roleColors: Record<UserRole, string> = {
-  usuario: "bg-blue-100 text-blue-800",
+  responsable: "bg-blue-100 text-blue-800",
   calificador: "bg-green-100 text-green-800",
   asignador: "bg-purple-100 text-purple-800",
   admin: "bg-red-100 text-red-800",
@@ -166,7 +166,7 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
-                      onClick={() => handleRoleChange(user.id, user.role === 'admin' ? 'usuario' : 'admin')}
+                      onClick={() => handleRoleChange(user.id, user.role === 'admin' ? 'responsable' : 'admin')}
                       className="flex items-center"
                     >
                       <ShieldCheck className="mr-2 h-4 w-4" />

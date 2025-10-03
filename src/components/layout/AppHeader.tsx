@@ -23,7 +23,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 const roleLabels = {
-  usuario: 'Usuario',
+  responsable: 'Responsable',
   calificador: 'Calificador',
   asignador: 'Asignador',
   admin: 'Administrador',

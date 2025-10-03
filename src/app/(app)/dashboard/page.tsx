@@ -14,7 +14,7 @@ export default function DashboardPage() {
     if (!authLoading && user) {
       // Redirigir según el rol del usuario
       switch (user.role) {
-        case 'usuario':
+        case 'responsable':
           router.push('/dashboard/usuario');
           break;
         case 'calificador':
@@ -27,8 +27,8 @@ export default function DashboardPage() {
           router.push('/dashboard/admin');
           break;
         default:
-          // Si no tiene rol específico, ir al dashboard de usuario
-          router.push('/dashboard/usuario');
+          // Si no tiene rol específico, ir al dashboard de responsable
+          router.push('/dashboard');
           break;
       }
     }

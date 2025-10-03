@@ -51,7 +51,7 @@ export async function GET(
 
     const fileName = path.basename(filePath);
 
-    return new NextResponse(fileContent, {
+    return new NextResponse(new Uint8Array(fileContent), {
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${fileName}"`,

@@ -756,9 +756,9 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {users.filter(u => u.role === 'usuario').length}
+                    {users.filter(u => u.role === 'responsable').length}
                   </div>
-                  <p className="text-sm text-muted-foreground">Usuarios</p>
+                  <p className="text-sm text-muted-foreground">Responsables</p>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">

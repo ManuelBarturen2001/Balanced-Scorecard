@@ -22,22 +22,9 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { AssignedIndicator, User, Faculty, ProfessionalSchool, Office, Perspective } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllPerspectives } from '@/lib/data';
+import { calculateOverallStatus, STATUS_COLORS, STATUS_TRANSLATIONS } from '@/lib/status-utils';
+import { generateProfessionalPDF, generateProfessionalExcel } from '@/lib/report-utils';
 
-const statusColors = {
-  Pending: 'bg-yellow-100 text-yellow-800',
-  Submitted: 'bg-blue-100 text-blue-800',
-  Approved: 'bg-green-100 text-green-800',
-  Rejected: 'bg-red-100 text-red-800',
-  Overdue: 'bg-orange-100 text-orange-800',
-};
-
-const statusTranslations = {
-  Pending: 'Pendiente',
-  Submitted: 'Presentado',
-  Approved: 'Aprobado',
-  Rejected: 'Rechazado',
-  Overdue: 'Vencido',
-};
 
 export default function AsignadorDashboard() {
   const { user } = useAuth();
@@ -62,8 +49,18 @@ export default function AsignadorDashboard() {
           getAllPerspectives()
         ]);
         
-        // Mostrar todas las asignaciones para el asignador
-        const asignadorAssignments = allAssignments;
+        // Filtrar por assignerId si está disponible - ESTO ES LO QUE NECESITAS PARA EL PUNTO 4
+        const asignadorAssignments = allAssignments.filter((assignment: any) => {
+          // Verificar si el assignment tiene assignerId y coincide con el usuario actual
+          if (assignment.assignerId && user?.id) {
+            return assignment.assignerId === user.id;
+          }
+          // Si no hay assignerId, mostrar todas (compatibilidad hacia atrás)
+          return true;
+        }).map(assignment => ({
+          ...assignment,
+          calculatedStatus: calculateOverallStatus(assignment)
+        }));
         
         setAssignments(asignadorAssignments);
         setUsers(allUsers);
@@ -93,13 +90,13 @@ export default function AsignadorDashboard() {
 
   const totalAssignments = assignments.length;
   const completedAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
+    assignment => assignment.calculatedStatus === 'Approved' || assignment.calculatedStatus === 'Rejected'
   ).length;
   const pendingAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Pending'
+    assignment => assignment.calculatedStatus === 'Pending'
   ).length;
   const activeAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Submitted'
+    assignment => assignment.calculatedStatus === 'Submitted'
   ).length;
 
   const completionRate = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
@@ -121,9 +118,12 @@ export default function AsignadorDashboard() {
     if (!acc[dateString]) {
       acc[dateString] = [];
     }
-    acc[dateString].push(assignment);
+    acc[dateString].push({
+      ...assignment,
+      calculatedStatus: calculateOverallStatus(assignment)
+    });
     return acc;
-  }, {} as Record<string, AssignedIndicator[]>);
+  }, {} as Record<string, (AssignedIndicator & { calculatedStatus: any })[]>);
 
   const recentAssignments = assignments
     .sort((a, b) => {
@@ -146,7 +146,11 @@ export default function AsignadorDashboard() {
       
       return dateB.getTime() - dateA.getTime();
     })
-    .slice(0, 5);
+    .slice(0, 5)
+    .map(assignment => ({
+      ...assignment,
+      calculatedStatus: calculateOverallStatus(assignment)
+    }));
 
   const getStudentName = (userId: string) => {
     const student = users.find(u => u.id === userId);
@@ -223,6 +227,57 @@ export default function AsignadorDashboard() {
     }
   };
 
+  // Funciones para generar reportes
+  const generatePDFReport = () => {
+    generateProfessionalPDF({
+      title: 'Reporte de Asignador',
+      user: user,
+      date: new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      stats: {
+        total: totalAssignments,
+        completed: completedAssignments,
+        active: activeAssignments,
+        pending: pendingAssignments,
+        overdue: assignments.filter(a => calculateOverallStatus(a) === 'Overdue').length,
+        completionRate: completionRate.toFixed(1) + '%'
+      },
+      assignments: assignments,
+      users: users,
+      faculties: faculties
+    });
+  };
+
+  const generateExcelReport = () => {
+    generateProfessionalExcel({
+      title: 'Reporte de Asignador',
+      user: user,
+      date: new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      stats: {
+        total: totalAssignments,
+        completed: completedAssignments,
+        active: activeAssignments,
+        pending: pendingAssignments,
+        overdue: assignments.filter(a => calculateOverallStatus(a) === 'Overdue').length,
+        completionRate: completionRate.toFixed(1) + '%'
+      },
+      assignments: assignments,
+      users: users,
+      faculties: faculties
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -232,10 +287,20 @@ export default function AsignadorDashboard() {
             Bienvenido, {user?.name}. Aquí puedes gestionar las asignaciones de tu facultad.
           </p>
         </div>
-        <Button onClick={() => window.location.href = '/assign-indicators'}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Asignar Indicador
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => window.location.href = '/assign-indicators'}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Asignar Indicador
+          </Button>
+          <Button onClick={generatePDFReport} variant="outline" size="sm">
+            <FileText className="h-4 w-4 mr-2" />
+            Reporte PDF
+          </Button>
+          <Button onClick={generateExcelReport} variant="outline" size="sm">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Reporte Excel
+          </Button>
+        </div>
       </div>
 
       {/* Estadísticas principales */}
@@ -366,9 +431,9 @@ export default function AsignadorDashboard() {
                         
                         <div className="flex flex-col items-end gap-2">
                           <Badge 
-                            className={statusColors[assignment.overallStatus || 'Pending']}
+                            className={STATUS_COLORS[assignment.calculatedStatus || 'Pending']}
                           >
-                            {statusTranslations[assignment.overallStatus || 'Pending']}
+                            {STATUS_TRANSLATIONS[assignment.calculatedStatus || 'Pending']}
                           </Badge>
                         </div>
                       </div>
@@ -432,10 +497,10 @@ export default function AsignadorDashboard() {
                                 
                                 <div className="flex flex-col items-end gap-2">
                                   <Badge 
-                                    className={statusColors[assignment.overallStatus || 'Pending']}
+                                    className={STATUS_COLORS[assignment.calculatedStatus || 'Pending']}
                                     variant="outline"
                                   >
-                                    {statusTranslations[assignment.overallStatus || 'Pending']}
+                                    {STATUS_TRANSLATIONS[assignment.calculatedStatus || 'Pending']}
                                   </Badge>
                                 </div>
                               </div>
@@ -467,7 +532,7 @@ export default function AsignadorDashboard() {
               ) : (
                 <div className="space-y-4">
                   {assignments
-                    .filter(assignment => assignment.overallStatus === 'Submitted')
+                    .filter(assignment => calculateOverallStatus(assignment) === 'Submitted')
                     .map((assignment) => {
                       const locationInfo = getLocationInfo(assignment.userId);
                       return (
@@ -522,10 +587,14 @@ export default function AsignadorDashboard() {
               ) : (
                 <div className="space-y-4">
                   {assignments
-                    .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
+                    .filter(assignment => {
+                      const status = calculateOverallStatus(assignment);
+                      return status === 'Approved' || status === 'Rejected';
+                    })
                     .map((assignment) => {
                       const locationInfo = getLocationInfo(assignment.userId);
-                      const isApproved = assignment.overallStatus === 'Approved';
+                      const calculatedStatus = calculateOverallStatus(assignment);
+                      const isApproved = calculatedStatus === 'Approved';
                       return (
                         <div
                           key={assignment.id}

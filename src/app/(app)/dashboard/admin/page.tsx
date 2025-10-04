@@ -32,24 +32,11 @@ import { getAllAssignedIndicators, getAllUsers, getAllFaculties } from '@/lib/da
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { calculateOverallStatus, STATUS_COLORS, STATUS_TRANSLATIONS } from '@/lib/status-utils';
+import { generateProfessionalPDF, generateProfessionalExcel } from '@/lib/report-utils';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
-const statusColors = {
-  Pending: 'bg-yellow-100 text-yellow-800',
-  Submitted: 'bg-blue-100 text-blue-800',
-  Approved: 'bg-green-100 text-green-800',
-  Rejected: 'bg-red-100 text-red-800',
-  Overdue: 'bg-orange-100 text-orange-800',
-};
-
-const statusTranslations = {
-  Pending: 'Pendiente',
-  Submitted: 'Presentado',
-  Approved: 'Aprobado',
-  Rejected: 'Rechazado',
-  Overdue: 'Vencido',
-};
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -117,20 +104,23 @@ export default function AdminDashboard() {
     }
     
     return true;
-  });
+  }).map(assignment => ({
+    ...assignment,
+    calculatedStatus: calculateOverallStatus(assignment)
+  }));
 
   const totalAssignments = filteredAssignments.length;
   const completedAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
+    assignment => assignment.calculatedStatus === 'Approved' || assignment.calculatedStatus === 'Rejected'
   ).length;
   const pendingAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Pending'
+    assignment => assignment.calculatedStatus === 'Pending'
   ).length;
   const activeAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Submitted'
+    assignment => assignment.calculatedStatus === 'Submitted'
   ).length;
   const overdueAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Overdue'
+    assignment => assignment.calculatedStatus === 'Overdue'
   ).length;
 
   const completionRate = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
@@ -140,15 +130,18 @@ export default function AdminDashboard() {
     const facultyAssignments = assignments.filter(assignment => {
       const student = users.find(u => u.id === assignment.userId);
       return student?.facultyId === faculty.id;
-    });
+    }).map(assignment => ({
+      ...assignment,
+      calculatedStatus: calculateOverallStatus(assignment)
+    }));
 
     return {
       faculty,
       total: facultyAssignments.length,
-      completed: facultyAssignments.filter(a => a.overallStatus === 'Approved' || a.overallStatus === 'Rejected').length,
-      pending: facultyAssignments.filter(a => a.overallStatus === 'Pending').length,
-      active: facultyAssignments.filter(a => a.overallStatus === 'Submitted').length,
-      overdue: facultyAssignments.filter(a => a.overallStatus === 'Overdue').length,
+      completed: facultyAssignments.filter(a => a.calculatedStatus === 'Approved' || a.calculatedStatus === 'Rejected').length,
+      pending: facultyAssignments.filter(a => a.calculatedStatus === 'Pending').length,
+      active: facultyAssignments.filter(a => a.calculatedStatus === 'Submitted').length,
+      overdue: facultyAssignments.filter(a => a.calculatedStatus === 'Overdue').length,
     };
   });
 
@@ -230,155 +223,55 @@ export default function AdminDashboard() {
     }).join(', ');
   };
 
-  // Funciones para generar reportes
+  // Funciones para generar reportes mejorados
   const generatePDFReport = () => {
-    const reportData = {
+    generateProfessionalPDF({
       title: 'Reporte de Administrador',
-      date: new Date().toLocaleDateString(),
+      user: user,
+      date: new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
       stats: {
         total: totalAssignments,
         completed: completedAssignments,
         active: activeAssignments,
         pending: pendingAssignments,
         overdue: overdueAssignments,
-        completionRate: completionRate.toFixed(1)
+        completionRate: completionRate.toFixed(1) + '%'
       },
-      facultyStats: statsByFaculty.filter(stat => stat.total > 0),
-      recentAssignments: filteredAssignments
-        .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
-        .slice(0, 10)
-    };
-
-    // Crear contenido del PDF
-    const content = `
-      <html>
-        <head>
-          <title>Reporte de Administrador</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .stats { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .stat-item { text-align: center; }
-            .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .table th { background-color: #f2f2f2; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Reporte de Administrador</h1>
-            <p>Fecha: ${reportData.date}</p>
-          </div>
-          
-          <div class="stats">
-            <div class="stat-item">
-              <h3>${reportData.stats.total}</h3>
-              <p>Total Asignaciones</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.completed}</h3>
-              <p>Completadas</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.active}</h3>
-              <p>Activas</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.pending}</h3>
-              <p>Pendientes</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.overdue}</h3>
-              <p>Vencidas</p>
-            </div>
-          </div>
-          
-          <h2>Estadísticas por Facultad</h2>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Facultad</th>
-                <th>Total</th>
-                <th>Completadas</th>
-                <th>Activas</th>
-                <th>Pendientes</th>
-                <th>Vencidas</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${reportData.facultyStats.map(stat => `
-                <tr>
-                  <td>${stat.faculty.name}</td>
-                  <td>${stat.total}</td>
-                  <td>${stat.completed}</td>
-                  <td>${stat.active}</td>
-                  <td>${stat.pending}</td>
-                  <td>${stat.overdue}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    // Crear y descargar PDF
-    const blob = new Blob([content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte-admin-${new Date().toISOString().split('T')[0]}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
+      assignments: filteredAssignments,
+      users: users,
+      faculties: faculties
+    });
   };
 
   const generateExcelReport = () => {
-    const csvContent = [
-      ['Reporte de Administrador', ''],
-      ['Fecha', new Date().toLocaleDateString()],
-      [''],
-      ['Estadísticas Generales'],
-      ['Total Asignaciones', totalAssignments],
-      ['Completadas', completedAssignments],
-      ['Activas', activeAssignments],
-      ['Pendientes', pendingAssignments],
-      ['Vencidas', overdueAssignments],
-      ['Tasa de Completación', `${completionRate.toFixed(1)}%`],
-      [''],
-      ['Estadísticas por Facultad'],
-      ['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas'],
-      ...statsByFaculty
-        .filter(stat => stat.total > 0)
-        .map(stat => [
-          stat.faculty.name,
-          stat.total,
-          stat.completed,
-          stat.active,
-          stat.pending,
-          stat.overdue
-        ]),
-      [''],
-      ['Asignaciones Recientes'],
-      ['ID', 'Estudiante', 'Facultad', 'Estado', 'Fecha Asignación'],
-      ...filteredAssignments
-        .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
-        .slice(0, 10)
-        .map(assignment => [
-          assignment.id,
-          getStudentName(assignment.userId),
-          getFacultyName(assignment.userId),
-          statusTranslations[assignment.overallStatus || 'Pending'],
-          new Date(assignment.assignedDate).toLocaleDateString()
-        ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte-admin-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    generateProfessionalExcel({
+      title: 'Reporte de Administrador',
+      user: user,
+      date: new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      stats: {
+        total: totalAssignments,
+        completed: completedAssignments,
+        active: activeAssignments,
+        pending: pendingAssignments,
+        overdue: overdueAssignments,
+        completionRate: completionRate.toFixed(1) + '%'
+      },
+      assignments: filteredAssignments,
+      users: users,
+      faculties: faculties
+    });
   };
 
   return (
@@ -683,9 +576,9 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge 
-                            className={statusColors[assignment.overallStatus || 'Pending']}
+                            className={STATUS_COLORS[assignment.calculatedStatus || 'Pending']}
                           >
-                            {statusTranslations[assignment.overallStatus || 'Pending']}
+                            {STATUS_TRANSLATIONS[assignment.calculatedStatus || 'Pending']}
                           </Badge>
                           <Button variant="outline" size="sm">
                             Ver detalles
@@ -716,7 +609,7 @@ export default function AdminDashboard() {
               ) : (
                 <div className="space-y-3">
                   {filteredAssignments
-                    .filter(assignment => assignment.overallStatus === 'Overdue')
+                    .filter(assignment => assignment.calculatedStatus === 'Overdue')
                     .map((assignment) => (
                       <div
                         key={assignment.id}

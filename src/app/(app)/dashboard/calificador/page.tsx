@@ -23,22 +23,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { AssignedIndicator, VerificationStatus, User } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers } from '@/lib/data';
+import { calculateOverallStatus, STATUS_COLORS, STATUS_TRANSLATIONS } from '@/lib/status-utils';
+import { generateProfessionalPDF, generateProfessionalExcel } from '@/lib/report-utils';
 
-const statusColors = {
-  Pending: 'bg-yellow-100 text-yellow-800',
-  Submitted: 'bg-blue-100 text-blue-800',
-  Approved: 'bg-green-100 text-green-800',
-  Rejected: 'bg-red-100 text-red-800',
-  Overdue: 'bg-orange-100 text-orange-800',
-};
-
-const statusTranslations = {
-  Pending: 'Pendiente',
-  Submitted: 'Presentado',
-  Approved: 'Aprobado',
-  Rejected: 'Rechazado',
-  Overdue: 'Vencido',
-};
 
 export default function CalificadorDashboard() {
   const { user } = useAuth();
@@ -56,9 +43,12 @@ export default function CalificadorDashboard() {
         ]);
         
         // Filtrar asignaciones donde el usuario actual es parte del jurado
-        const calificadorAssignments = allAssignments.filter(
-          assignment => assignment.jury?.includes(user?.id || '')
-        );
+        const calificadorAssignments = allAssignments
+          .filter(assignment => assignment.jury?.includes(user?.id || ''))
+          .map(assignment => ({
+            ...assignment,
+            calculatedStatus: calculateOverallStatus(assignment)
+          }));
         
         setAssignments(calificadorAssignments);
         setUsers(allUsers);
@@ -84,13 +74,13 @@ export default function CalificadorDashboard() {
 
   const totalEvaluations = assignments.length;
   const completedEvaluations = assignments.filter(
-    assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
+    assignment => assignment.calculatedStatus === 'Approved' || assignment.calculatedStatus === 'Rejected'
   ).length;
   const pendingEvaluations = assignments.filter(
-    assignment => assignment.overallStatus === 'Submitted'
+    assignment => assignment.calculatedStatus === 'Submitted'
   ).length;
   const overdueEvaluations = assignments.filter(
-    assignment => assignment.overallStatus === 'Overdue'
+    assignment => assignment.calculatedStatus === 'Overdue'
   ).length;
 
   const completionRate = totalEvaluations > 0 ? (completedEvaluations / totalEvaluations) * 100 : 0;
@@ -102,6 +92,57 @@ export default function CalificadorDashboard() {
   const getStudentName = (userId: string) => {
     const student = users.find(u => u.id === userId);
     return student?.name || 'Usuario desconocido';
+  };
+
+  // Funciones para generar reportes
+  const generatePDFReport = () => {
+    generateProfessionalPDF({
+      title: 'Reporte de Calificador',
+      user: user,
+      date: new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      stats: {
+        total: totalEvaluations,
+        completed: completedEvaluations,
+        active: pendingEvaluations, // Para calificador, las "activas" son las que están enviadas para evaluación
+        pending: assignments.filter(a => calculateOverallStatus(a) === 'Pending').length,
+        overdue: overdueEvaluations,
+        completionRate: completionRate.toFixed(1) + '%'
+      },
+      assignments: assignments,
+      users: users,
+      faculties: []
+    });
+  };
+
+  const generateExcelReport = () => {
+    generateProfessionalExcel({
+      title: 'Reporte de Calificador',
+      user: user,
+      date: new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      stats: {
+        total: totalEvaluations,
+        completed: completedEvaluations,
+        active: pendingEvaluations,
+        pending: assignments.filter(a => calculateOverallStatus(a) === 'Pending').length,
+        overdue: overdueEvaluations,
+        completionRate: completionRate.toFixed(1) + '%'
+      },
+      assignments: assignments,
+      users: users,
+      faculties: []
+    });
   };
 
   const getFacultyName = (facultyId: string) => {
@@ -123,6 +164,20 @@ export default function CalificadorDashboard() {
           <p className="text-muted-foreground">
             Bienvenido, {user?.name}. Aquí puedes gestionar tus evaluaciones.
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => router.push('/admin/grading')} className="bg-primary hover:bg-primary/90">
+            <Star className="h-4 w-4 mr-2" />
+            Evaluar Asignaciones
+          </Button>
+          <Button onClick={generatePDFReport} variant="outline" size="sm">
+            <FileCheck className="h-4 w-4 mr-2" />
+            Reporte PDF
+          </Button>
+          <Button onClick={generateExcelReport} variant="outline" size="sm">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Reporte Excel
+          </Button>
         </div>
       </div>
 
@@ -230,7 +285,7 @@ export default function CalificadorDashboard() {
               ) : (
                 <div className="space-y-3">
                                      {assignments
-                     .filter(assignment => assignment.overallStatus === 'Submitted')
+                     .filter(assignment => calculateOverallStatus(assignment) === 'Submitted')
                      .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -287,7 +342,7 @@ export default function CalificadorDashboard() {
               ) : (
                 <div className="space-y-3">
                   {assignments
-                    .filter(assignment => assignment.overallStatus === 'Overdue')
+                    .filter(assignment => calculateOverallStatus(assignment) === 'Overdue')
                     .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -336,7 +391,10 @@ export default function CalificadorDashboard() {
               ) : (
                 <div className="space-y-3">
                                      {assignments
-                     .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
+                     .filter(assignment => {
+                       const status = calculateOverallStatus(assignment);
+                       return status === 'Approved' || status === 'Rejected';
+                     })
                      .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -355,15 +413,16 @@ export default function CalificadorDashboard() {
                         </div>
                         <Badge 
                           className={
-                            assignment.overallStatus === 'Approved' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+                            isApproved 
+                              ? STATUS_COLORS.Approved
+                              : STATUS_COLORS.Rejected
                           }
                         >
-                          {assignment.overallStatus === 'Approved' ? 'Aprobada' : 'Rechazada'}
+                          {isApproved ? 'Aprobada' : 'Rechazada'}
                         </Badge>
                       </div>
-                    ))}
+                    );
+                    })}
                 </div>
               )}
             </CardContent>
@@ -405,11 +464,11 @@ export default function CalificadorDashboard() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                         <Badge 
-                          className={statusColors[assignment.overallStatus || 'Pending']}
+                          className={STATUS_COLORS[calculateOverallStatus(assignment) || 'Pending']}
                         >
-                          {statusTranslations[assignment.overallStatus || 'Pending']}
+                          {STATUS_TRANSLATIONS[calculateOverallStatus(assignment) || 'Pending']}
                         </Badge>
                         <Button 
                           variant="outline" 

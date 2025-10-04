@@ -4,6 +4,7 @@ import type { AssignedIndicator } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { calculateOverallStatus, STATUS_COLORS, STATUS_TRANSLATIONS } from '@/lib/status-utils';
 
 interface AssignmentCardProps {
   assignedIndicator: AssignedIndicator;
@@ -19,25 +20,10 @@ interface AssignmentCardProps {
   getJuryNames?: (juryIds: string[]) => string;
 }
 
-const statusColors = {
-  Pending: 'bg-yellow-100 text-yellow-800',
-  Submitted: 'bg-blue-100 text-blue-800',
-  Approved: 'bg-green-100 text-green-800',
-  Rejected: 'bg-red-100 text-red-800',
-  Overdue: 'bg-orange-100 text-orange-800',
-};
-
-const statusTranslations = {
-  Pending: 'Pendiente',
-  Submitted: 'Presentado',
-  Approved: 'Aprobado',
-  Rejected: 'Rechazado',
-  Overdue: 'Vencido',
-};
 
 export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload, userId, isAsignador = false, getStudentName, getFacultyName, getSchoolName, getOfficeName, getPerspectiveName, getJuryNames }: AssignmentCardProps) {
-  // Estado de la asignación
-  const status = assignedIndicator.overallStatus || 'Pending';
+  // Calcular estado correcto considerando fechas de vencimiento
+  const status = calculateOverallStatus(assignedIndicator);
 
   if (isAsignador) {
     // Vista para asignadores
@@ -87,10 +73,10 @@ export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload,
           <Badge 
             className={cn(
               "text-xs whitespace-nowrap",
-              statusColors[status] || statusColors.Pending
+              STATUS_COLORS[status] || STATUS_COLORS.Pending
             )}
           >
-            {statusTranslations[status] || status}
+            {STATUS_TRANSLATIONS[status] || status}
           </Badge>
         </div>
       </div>
@@ -129,10 +115,10 @@ export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload,
         <Badge 
           className={cn(
             "text-xs whitespace-nowrap",
-            statusColors[status] || statusColors.Pending
+            STATUS_COLORS[status] || STATUS_COLORS.Pending
           )}
         >
-          {statusTranslations[status] || status}
+          {STATUS_TRANSLATIONS[status] || status}
         </Badge>
       </div>
     );

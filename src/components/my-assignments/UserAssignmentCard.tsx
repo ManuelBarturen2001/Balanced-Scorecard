@@ -14,6 +14,7 @@ import { UserVerificationMethodItem } from './UserVerificationMethodItem';
 import { useState, useEffect } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Skeleton } from '@/components/ui/skeleton';
+import { calculateOverallStatus, STATUS_COLORS, STATUS_TRANSLATIONS, parseDate } from '@/lib/status-utils';
 
 interface UserAssignmentCardProps {
   assignedIndicator: AssignedIndicator;
@@ -42,7 +43,7 @@ const statusColorClasses: Record<VerificationStatus, string> = {
     Submitted: "bg-blue-100 text-blue-800 border-blue-300",
     Approved: "bg-green-100 text-green-800 border-green-300",
     Rejected: "bg-red-100 text-red-800 border-red-300",
-    Overdue: "bg-orange-100 text-orange-800 border-orange-300",
+    Overdue: "bg-red-100 text-red-800 border-red-300", // Cambio: antes era orange, ahora rojo
 };
 
 export function UserAssignmentCard({ assignedIndicator, onViewDetails, onFileUpload }: UserAssignmentCardProps) {
@@ -102,34 +103,8 @@ export function UserAssignmentCard({ assignedIndicator, onViewDetails, onFileUpl
     );
   }
   console.log(assignedIndicator.overallStatus)
-  let overallStatus = assignedIndicator.overallStatus || 'Pending';
-  //@ts-ignore
-  if (overallStatus === 'Pending' && assignedIndicator.assignedVerificationMethods.some(vm => {
-    try {
-      if (!vm.dueDate) return false;
-      let dateObj: Date;
-      const dueDate = vm.dueDate as any;
-      if (dueDate.seconds) {
-        dateObj = new Date(dueDate.seconds * 1000);
-      } else if (dueDate instanceof Date) {
-        dateObj = dueDate;
-      } else if (typeof dueDate === 'object' && dueDate.toDate) {
-        dateObj = dueDate.toDate();
-      } else if (typeof dueDate === 'number') {
-        dateObj = new Date(dueDate);
-      } else if (typeof dueDate === 'string') {
-        dateObj = new Date(dueDate);
-      } else {
-        dateObj = new Date(dueDate);
-      }
-      return !isNaN(dateObj.getTime()) && dateObj.getTime() !== 0 && isPast(dateObj) && vm.status === 'Pending';
-    } catch (error) {
-      console.error('Error checking due date:', error);
-      return false;
-    }
-  })) {
-      overallStatus = 'Overdue';
-  }
+  // Calcular estado correcto considerando fechas de vencimiento
+  let overallStatus = calculateOverallStatus(assignedIndicator);
   const OverallStatusIcon = statusIcons[overallStatus] || Info;
 
   return (
@@ -148,25 +123,9 @@ export function UserAssignmentCard({ assignedIndicator, onViewDetails, onFileUpl
                     (() => {
                       try {
                         const date = assignedIndicator.assignedDate;
-                        if (!date) return 'Fecha no disponible';
+                        const dateObj = parseDate(date);
                         
-                        let dateObj: Date;
-                        const dateAny = date as any;
-                        if (dateAny.seconds) {
-                          dateObj = new Date(dateAny.seconds * 1000);
-                        } else if (dateAny instanceof Date) {
-                          dateObj = dateAny;
-                        } else if (typeof dateAny === 'object' && dateAny.toDate) {
-                          dateObj = dateAny.toDate();
-                        } else if (typeof dateAny === 'number') {
-                          dateObj = new Date(dateAny);
-                        } else if (typeof dateAny === 'string') {
-                          dateObj = new Date(dateAny);
-                        } else {
-                          dateObj = new Date(dateAny);
-                        }
-                        
-                        if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
+                        if (!dateObj) {
                           return 'Fecha no disponible';
                         }
                         

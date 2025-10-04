@@ -109,10 +109,36 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
   <p className="text-left">
     Asignado: 
     <span className="font-semibold text-foreground ml-1">
-      {
-        // @ts-ignore
-        format(new Date(indicator.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
-      }
+{(() => {
+        try {
+          const date = indicator.assignedDate as any;
+          if (!date) return 'Fecha no disponible';
+          
+          let dateObj: Date;
+          if (date.seconds) {
+            dateObj = new Date(date.seconds * 1000);
+          } else if (date instanceof Date) {
+            dateObj = date;
+          } else if (typeof date === 'object' && date.toDate) {
+            dateObj = date.toDate();
+          } else if (typeof date === 'number') {
+            dateObj = new Date(date);
+          } else if (typeof date === 'string') {
+            dateObj = new Date(date);
+          } else {
+            dateObj = new Date(date);
+          }
+          
+          if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
+            return 'Fecha no disponible';
+          }
+          
+          return format(dateObj, 'dd-MMM-yyyy HH:mm:ss', { locale: es });
+        } catch (error) {
+          console.error('Error formatting assigned date:', error);
+          return 'Fecha no disponible';
+        }
+      })()}
     </span>
   </p>
 </div>  

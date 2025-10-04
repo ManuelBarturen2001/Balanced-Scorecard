@@ -58,7 +58,7 @@ export default function MyAssignmentsPage() {
       if (!authLoading && user) {
         try {
           if (isAsignador) {
-            // Para asignadores: obtener todas las asignaciones
+            // Para asignadores: obtener solo las asignaciones que ellos han creado
             const [allAssignments, allUsersData, facultiesData, schoolsData, perspectivesData, officesData] = await Promise.all([
               getAllAssignedIndicators(),
               getAllUsers(),
@@ -67,7 +67,18 @@ export default function MyAssignmentsPage() {
               getAllPerspectives(),
               getAllOffices()
             ]);
-            setUserAssignments(allAssignments);
+            
+            // Filtrar por assignerId - SOLUCIÓN AL PUNTO 4
+            const asignadorAssignments = allAssignments.filter((assignment: any) => {
+              // Verificar si el assignment tiene assignerId y coincide con el usuario actual
+              if (assignment.assignerId && user?.id) {
+                return assignment.assignerId === user.id;
+              }
+              // Si no hay assignerId, no mostrar (para mantener consistencia)
+              return false;
+            });
+            
+            setUserAssignments(asignadorAssignments);
             setAllUsers(allUsersData);
             setFaculties(facultiesData);
             setProfessionalSchools(schoolsData);

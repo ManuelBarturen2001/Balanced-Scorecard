@@ -17,11 +17,16 @@ import {
   BarChart3,
   UserPlus,
   FileText,
-  Filter
+  Filter,
+  FileDown,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { AssignedIndicator, User, Faculty, ProfessionalSchool, Office, Perspective } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllPerspectives } from '@/lib/data';
+import { isPast, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import type { VerificationStatus } from '@/lib/types';
 
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -62,8 +67,8 @@ export default function AsignadorDashboard() {
           getAllPerspectives()
         ]);
         
-        // Mostrar todas las asignaciones para el asignador
-        const asignadorAssignments = allAssignments;
+        // Mostrar SOLO las asignaciones creadas por el asignador actual
+        const asignadorAssignments = allAssignments.filter((a: any) => a.assignerId === user?.id);
         
         setAssignments(asignadorAssignments);
         setUsers(allUsers);
@@ -91,31 +96,47 @@ export default function AsignadorDashboard() {
     );
   }
 
-  const totalAssignments = assignments.length;
-  const completedAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
-  ).length;
-  const pendingAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Pending'
-  ).length;
-  const activeAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Submitted'
-  ).length;
+  const parseDate = (date: any): Date | null => {
+    if (!date) return null;
+    if (typeof date === 'object' && 'seconds' in date) return new Date((date as any).seconds * 1000);
+    if (typeof date === 'object' && typeof (date as any).toDate === 'function') return (date as any).toDate();
+    if (date instanceof Date) return isNaN(date.getTime()) ? null : date;
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const deriveStatus = (a: AssignedIndicator): VerificationStatus => {
+    const base = a.overallStatus || 'Pending';
+    if (base === 'Approved' || base === 'Rejected' || base === 'Submitted') return base;
+    const overdue = a.assignedVerificationMethods?.some(vm => {
+      const due = parseDate((vm as any).dueDate);
+      return vm.status === 'Pending' && due && isPast(due);
+    });
+    return overdue ? 'Overdue' : 'Pending';
+  };
+
+  const normalized = assignments.map(a => ({
+    ...a,
+    derivedStatus: deriveStatus(a),
+    assignedDateObj: parseDate((a as any).assignedDate),
+    dueDateObj: (() => {
+      const dates = (a.assignedVerificationMethods || []).map(vm => parseDate((vm as any).dueDate)).filter(Boolean) as Date[];
+      if (dates.length === 0) return parseDate((a as any).dueDate);
+      return new Date(Math.min(...dates.map(d => d.getTime())));
+    })()
+  }));
+
+  const totalAssignments = normalized.length;
+  const completedAssignments = normalized.filter(a => a.derivedStatus === 'Approved' || a.derivedStatus === 'Rejected').length;
+  const pendingAssignments = normalized.filter(a => a.derivedStatus === 'Pending').length;
+  const overdueAssignments = normalized.filter(a => a.derivedStatus === 'Overdue').length;
 
   const completionRate = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
 
   // Agrupar asignaciones por fecha
-  const assignmentsByDate = assignments.reduce((acc, assignment) => {
+  const assignmentsByDate = normalized.reduce((acc, assignment) => {
     // Manejar tanto objetos Timestamp de Firestore como fechas normales
-    let date: Date;
-    if (assignment.assignedDate && typeof assignment.assignedDate === 'object' && 'seconds' in assignment.assignedDate) {
-      // Es un Timestamp de Firestore
-      const timestamp = assignment.assignedDate as { seconds: number };
-      date = new Date(timestamp.seconds * 1000);
-    } else {
-      // Es una fecha normal
-      date = new Date(assignment.assignedDate);
-    }
+    const date = assignment.assignedDateObj || new Date(0);
     
     const dateString = date.toLocaleDateString();
     if (!acc[dateString]) {
@@ -125,25 +146,10 @@ export default function AsignadorDashboard() {
     return acc;
   }, {} as Record<string, AssignedIndicator[]>);
 
-  const recentAssignments = assignments
+  const recentAssignments = normalized
     .sort((a, b) => {
-      // Manejar tanto objetos Timestamp de Firestore como fechas normales
-      let dateA: Date, dateB: Date;
-      
-      if (a.assignedDate && typeof a.assignedDate === 'object' && 'seconds' in a.assignedDate) {
-        const timestampA = a.assignedDate as { seconds: number };
-        dateA = new Date(timestampA.seconds * 1000);
-      } else {
-        dateA = new Date(a.assignedDate);
-      }
-      
-      if (b.assignedDate && typeof b.assignedDate === 'object' && 'seconds' in b.assignedDate) {
-        const timestampB = b.assignedDate as { seconds: number };
-        dateB = new Date(timestampB.seconds * 1000);
-      } else {
-        dateB = new Date(b.assignedDate);
-      }
-      
+      const dateA = a.assignedDateObj || new Date(0);
+      const dateB = b.assignedDateObj || new Date(0);
       return dateB.getTime() - dateA.getTime();
     })
     .slice(0, 5);
@@ -188,13 +194,9 @@ export default function AsignadorDashboard() {
   };
 
   const formatDueDate = (dueDate: any) => {
-    if (!dueDate) return 'Sin fecha límite';
-    const date = new Date(dueDate);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const d = parseDate(dueDate);
+    if (!d) return 'Sin fecha límite';
+    return format(d, 'dd-MMM-yyyy', { locale: es });
   };
 
   const getLocationInfo = (userId: string) => {
@@ -223,6 +225,76 @@ export default function AsignadorDashboard() {
     }
   };
 
+  // Reportes para Asignador
+  const generatePDFReport = async () => {
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Reporte de Asignador', 40, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${format(new Date(), 'dd-MMM-yyyy', { locale: es })}`, 40, 60);
+
+    // Resumen
+    // @ts-ignore
+    doc.autoTable({
+      startY: 90,
+      styles: { fontSize: 10 },
+      head: [['Total', 'Completadas', 'Activas', 'Pendientes']],
+      body: [[totalAssignments, completedAssignments, activeAssignments, pendingAssignments]]
+    });
+
+    // Detalle
+    doc.text('Asignaciones', 40, (doc as any).lastAutoTable.finalY + 30);
+    // @ts-ignore
+    doc.autoTable({
+      startY: (doc as any).lastAutoTable.finalY + 40,
+      styles: { fontSize: 9 },
+      head: [['ID', 'Responsable', 'Perspectiva', 'Estado', 'Asignada', 'Vence']],
+      body: normalized.slice(0, 200).map(a => [
+        a.id || '-',
+        getStudentName(a.userId),
+        getPerspectiveName(a.perspectiveId),
+        statusTranslations[a.derivedStatus || 'Pending'],
+        a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+        a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+      ])
+    });
+
+    doc.save(`reporte-asignador-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const generateExcelReport = async () => {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    const resumen = [
+      ['Reporte de Asignador'],
+      ['Fecha', format(new Date(), 'dd-MMM-yyyy', { locale: es })],
+      [],
+      ['Total', totalAssignments],
+      ['Completadas', completedAssignments],
+      ['Activas', activeAssignments],
+      ['Pendientes', pendingAssignments],
+    ];
+    const resumenSheet = XLSX.utils.aoa_to_sheet(resumen);
+    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen');
+
+    const header = ['ID', 'Responsable', 'Perspectiva', 'Estado', 'Asignada', 'Vence'];
+    const rows = normalized.map(a => [
+      a.id || '-',
+      getStudentName(a.userId),
+      getPerspectiveName(a.perspectiveId),
+      statusTranslations[a.derivedStatus || 'Pending'],
+      a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+      a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+    ]);
+    const detalleSheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    XLSX.utils.book_append_sheet(wb, detalleSheet, 'Detalle');
+    XLSX.writeFile(wb, `reporte-asignador-${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -232,10 +304,20 @@ export default function AsignadorDashboard() {
             Bienvenido, {user?.name}. Aquí puedes gestionar las asignaciones de tu facultad.
           </p>
         </div>
-        <Button onClick={() => window.location.href = '/assign-indicators'}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Asignar Indicador
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={async () => await generatePDFReport()} variant="outline" size="sm">
+            <FileDown className="h-4 w-4 mr-2" />
+            Reporte PDF
+          </Button>
+          <Button onClick={async () => await generateExcelReport()} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Reporte Excel
+          </Button>
+          <Button onClick={() => window.location.href = '/assign-indicators'}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Asignar Indicador
+          </Button>
+        </div>
       </div>
 
       {/* Estadísticas principales */}
@@ -268,13 +350,13 @@ export default function AsignadorDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Activas</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
+            <CardTitle className="text-sm font-medium">Vencidas</CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{activeAssignments}</div>
+            <div className="text-2xl font-bold text-red-600">{overdueAssignments}</div>
             <p className="text-xs text-muted-foreground">
-              En proceso de evaluación
+              Requieren atención
             </p>
           </CardContent>
         </Card>
@@ -366,9 +448,9 @@ export default function AsignadorDashboard() {
                         
                         <div className="flex flex-col items-end gap-2">
                           <Badge 
-                            className={statusColors[assignment.overallStatus || 'Pending']}
+                            className={statusColors[assignment.derivedStatus || 'Pending']}
                           >
-                            {statusTranslations[assignment.overallStatus || 'Pending']}
+                            {statusTranslations[assignment.derivedStatus || 'Pending']}
                           </Badge>
                         </div>
                       </div>
@@ -426,16 +508,16 @@ export default function AsignadorDashboard() {
                                     <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                                     <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                                     <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                                    <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                                    <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDateObj)}</p>
                                   </div>
                                 </div>
                                 
                                 <div className="flex flex-col items-end gap-2">
                                   <Badge 
-                                    className={statusColors[assignment.overallStatus || 'Pending']}
+                                    className={statusColors[assignment.derivedStatus || 'Pending']}
                                     variant="outline"
                                   >
-                                    {statusTranslations[assignment.overallStatus || 'Pending']}
+                                    {statusTranslations[assignment.derivedStatus || 'Pending']}
                                   </Badge>
                                 </div>
                               </div>
@@ -467,7 +549,7 @@ export default function AsignadorDashboard() {
               ) : (
                 <div className="space-y-4">
                   {assignments
-                    .filter(assignment => assignment.overallStatus === 'Submitted')
+                    .filter(assignment => assignment.derivedStatus === 'Submitted')
                     .map((assignment) => {
                       const locationInfo = getLocationInfo(assignment.userId);
                       return (
@@ -487,7 +569,7 @@ export default function AsignadorDashboard() {
                               <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                               <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                               <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDateObj)}</p>
                             </div>
                           </div>
                           
@@ -522,7 +604,7 @@ export default function AsignadorDashboard() {
               ) : (
                 <div className="space-y-4">
                   {assignments
-                    .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
+                    .filter(assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected')
                     .map((assignment) => {
                       const locationInfo = getLocationInfo(assignment.userId);
                       const isApproved = assignment.overallStatus === 'Approved';
@@ -547,7 +629,7 @@ export default function AsignadorDashboard() {
                               <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
                               <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                               <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
-                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
+                              <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDateObj)}</p>
                             </div>
                           </div>
                           

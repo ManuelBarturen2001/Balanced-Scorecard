@@ -31,6 +31,9 @@ import { AssignedIndicator, User, Faculty } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { format, isPast } from 'date-fns';
+import { es } from 'date-fns/locale';
+import type { VerificationStatus } from '@/lib/types';
 import { Pie, Bar } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
@@ -59,6 +62,46 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedFaculty, setSelectedFaculty] = useState<string>('all');
   const [selectedDateRange, setSelectedDateRange] = useState<string>('all');
+
+  // Utilidad robusta para parsear fechas (Timestamp, Date, string, number)
+  const parseDate = (date: any): Date | null => {
+    if (!date) return null;
+    try {
+      if (typeof date === 'object' && date !== null && 'seconds' in date) {
+        return new Date((date as any).seconds * 1000);
+      }
+      if (typeof date === 'object' && date !== null && typeof (date as any).toDate === 'function') {
+        return (date as any).toDate();
+      }
+      if (date instanceof Date) return isNaN(date.getTime()) ? null : date;
+      if (typeof date === 'number') {
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      if (typeof date === 'string') {
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(date);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
+  const deriveAssignmentStatus = (assignment: AssignedIndicator): VerificationStatus => {
+    const base = assignment.overallStatus || 'Pending';
+    // Si está aprobado o rechazado, mantener
+    if (base === 'Approved' || base === 'Rejected') return base;
+    // Si está presentado, mantener como activo
+    if (base === 'Submitted') return base;
+    // Evaluar vencimiento por métodos pendientes
+    const overdue = assignment.assignedVerificationMethods?.some(vm => {
+      const due = parseDate((vm as any).dueDate);
+      return vm.status === 'Pending' && due && isPast(due);
+    });
+    return overdue ? 'Overdue' : 'Pending';
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -92,15 +135,30 @@ export default function AdminDashboard() {
     );
   }
 
+  // Normalizar asignaciones con estados derivados y fechas útiles
+  const normalizedAssignments = assignments.map((a) => ({
+    ...a,
+    derivedStatus: deriveAssignmentStatus(a),
+    assignedDateObj: parseDate((a as any).assignedDate),
+    // Fecha de vencimiento preferimos la más temprana de los métodos
+    dueDateObj: (() => {
+      const dates = (a.assignedVerificationMethods || [])
+        .map(vm => parseDate((vm as any).dueDate))
+        .filter(Boolean) as Date[];
+      if (dates.length === 0) return parseDate((a as any).dueDate);
+      return new Date(Math.min(...dates.map(d => d.getTime())));
+    })()
+  }));
+
   // Filtrar datos según los filtros seleccionados
-  const filteredAssignments = assignments.filter(assignment => {
+  const filteredAssignments = normalizedAssignments.filter(assignment => {
     if (selectedFaculty !== 'all') {
       const student = users.find(u => u.id === assignment.userId);
       if (student?.facultyId !== selectedFaculty) return false;
     }
     
     if (selectedDateRange !== 'all') {
-      const assignmentDate = new Date(assignment.assignedDate);
+      const assignmentDate = assignment.assignedDateObj || new Date(0);
       const now = new Date();
       const daysDiff = Math.floor((now.getTime() - assignmentDate.getTime()) / (1000 * 60 * 60 * 24));
       
@@ -121,23 +179,23 @@ export default function AdminDashboard() {
 
   const totalAssignments = filteredAssignments.length;
   const completedAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
+    assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected'
   ).length;
   const pendingAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Pending'
+    assignment => assignment.derivedStatus === 'Pending'
   ).length;
   const activeAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Submitted'
+    assignment => assignment.derivedStatus === 'Submitted'
   ).length;
   const overdueAssignments = filteredAssignments.filter(
-    assignment => assignment.overallStatus === 'Overdue'
+    assignment => assignment.derivedStatus === 'Overdue'
   ).length;
 
   const completionRate = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
 
   // Estadísticas por facultad
   const statsByFaculty = faculties.map(faculty => {
-    const facultyAssignments = assignments.filter(assignment => {
+    const facultyAssignments = normalizedAssignments.filter(assignment => {
       const student = users.find(u => u.id === assignment.userId);
       return student?.facultyId === faculty.id;
     });
@@ -145,10 +203,10 @@ export default function AdminDashboard() {
     return {
       faculty,
       total: facultyAssignments.length,
-      completed: facultyAssignments.filter(a => a.overallStatus === 'Approved' || a.overallStatus === 'Rejected').length,
-      pending: facultyAssignments.filter(a => a.overallStatus === 'Pending').length,
-      active: facultyAssignments.filter(a => a.overallStatus === 'Submitted').length,
-      overdue: facultyAssignments.filter(a => a.overallStatus === 'Overdue').length,
+      completed: facultyAssignments.filter(a => a.derivedStatus === 'Approved' || a.derivedStatus === 'Rejected').length,
+      pending: facultyAssignments.filter(a => a.derivedStatus === 'Pending').length,
+      active: facultyAssignments.filter(a => a.derivedStatus === 'Submitted').length,
+      overdue: facultyAssignments.filter(a => a.derivedStatus === 'Overdue').length,
     };
   });
 
@@ -218,8 +276,10 @@ export default function AdminDashboard() {
     return student?.name || 'Usuario desconocido';
   };
 
-  const getFacultyName = (facultyId: string) => {
-    const faculty = faculties.find(f => f.id === facultyId);
+  const getFacultyNameByUserId = (userId: string) => {
+    const student = users.find(u => u.id === userId);
+    if (!student?.facultyId) return 'Facultad no especificada';
+    const faculty = faculties.find(f => f.id === student.facultyId);
     return faculty?.name || 'Facultad no especificada';
   };
 
@@ -231,10 +291,12 @@ export default function AdminDashboard() {
   };
 
   // Funciones para generar reportes
-  const generatePDFReport = () => {
+  const generatePDFReport = async () => {
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const reportData = {
       title: 'Reporte de Administrador',
-      date: new Date().toLocaleDateString(),
+      date: format(new Date(), 'dd-MMM-yyyy', { locale: es }),
       stats: {
         total: totalAssignments,
         completed: completedAssignments,
@@ -245,98 +307,80 @@ export default function AdminDashboard() {
       },
       facultyStats: statsByFaculty.filter(stat => stat.total > 0),
       recentAssignments: filteredAssignments
-        .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
+        .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
         .slice(0, 10)
     };
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Reporte de Administrador', 40, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${reportData.date}`, 40, 60);
 
-    // Crear contenido del PDF
-    const content = `
-      <html>
-        <head>
-          <title>Reporte de Administrador</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .stats { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .stat-item { text-align: center; }
-            .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .table th { background-color: #f2f2f2; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Reporte de Administrador</h1>
-            <p>Fecha: ${reportData.date}</p>
-          </div>
-          
-          <div class="stats">
-            <div class="stat-item">
-              <h3>${reportData.stats.total}</h3>
-              <p>Total Asignaciones</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.completed}</h3>
-              <p>Completadas</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.active}</h3>
-              <p>Activas</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.pending}</h3>
-              <p>Pendientes</p>
-            </div>
-            <div class="stat-item">
-              <h3>${reportData.stats.overdue}</h3>
-              <p>Vencidas</p>
-            </div>
-          </div>
-          
-          <h2>Estadísticas por Facultad</h2>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Facultad</th>
-                <th>Total</th>
-                <th>Completadas</th>
-                <th>Activas</th>
-                <th>Pendientes</th>
-                <th>Vencidas</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${reportData.facultyStats.map(stat => `
-                <tr>
-                  <td>${stat.faculty.name}</td>
-                  <td>${stat.total}</td>
-                  <td>${stat.completed}</td>
-                  <td>${stat.active}</td>
-                  <td>${stat.pending}</td>
-                  <td>${stat.overdue}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    // Resumen
+    doc.setFontSize(12);
+    doc.text('Resumen General', 40, 90);
+    // @ts-ignore - autoTable está agregado por el import dinámico
+    doc.autoTable({
+      startY: 100,
+      styles: { fontSize: 10 },
+      head: [['Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas', 'Tasa de Completación']],
+      body: [[
+        reportData.stats.total,
+        reportData.stats.completed,
+        reportData.stats.active,
+        reportData.stats.pending,
+        reportData.stats.overdue,
+        `${reportData.stats.completionRate}%`
+      ]]
+    });
 
-    // Crear y descargar PDF
-    const blob = new Blob([content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte-admin-${new Date().toISOString().split('T')[0]}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
+    // Estadísticas por Facultad
+    doc.text('Estadísticas por Facultad', 40, (doc as any).lastAutoTable.finalY + 30);
+    // @ts-ignore
+    doc.autoTable({
+      startY: (doc as any).lastAutoTable.finalY + 40,
+      styles: { fontSize: 10 },
+      head: [['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas']],
+      body: reportData.facultyStats.map(stat => [
+        stat.faculty.name,
+        stat.total,
+        stat.completed,
+        stat.active,
+        stat.pending,
+        stat.overdue
+      ])
+    });
+
+    // Asignaciones recientes
+    doc.text('Asignaciones Recientes', 40, (doc as any).lastAutoTable.finalY + 30);
+    // @ts-ignore
+    doc.autoTable({
+      startY: (doc as any).lastAutoTable.finalY + 40,
+      styles: { fontSize: 9 },
+      head: [['ID', 'Estudiante', 'Facultad', 'Estado', 'Fecha Asignación']],
+      body: reportData.recentAssignments.map(a => [
+        a.id || '-',
+        getStudentName(a.userId),
+        getFacultyNameByUserId(a.userId),
+        statusTranslations[a.derivedStatus || 'Pending'],
+        a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+      ])
+    });
+
+    doc.save(`reporte-admin-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  const generateExcelReport = () => {
-    const csvContent = [
-      ['Reporte de Administrador', ''],
-      ['Fecha', new Date().toLocaleDateString()],
-      [''],
+  const generateExcelReport = async () => {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: Resumen
+    const resumenData = [
+      ['Reporte de Administrador'],
+      ['Fecha', format(new Date(), 'dd-MMM-yyyy', { locale: es })],
+      [],
       ['Estadísticas Generales'],
       ['Total Asignaciones', totalAssignments],
       ['Completadas', completedAssignments],
@@ -344,41 +388,34 @@ export default function AdminDashboard() {
       ['Pendientes', pendingAssignments],
       ['Vencidas', overdueAssignments],
       ['Tasa de Completación', `${completionRate.toFixed(1)}%`],
-      [''],
-      ['Estadísticas por Facultad'],
-      ['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas'],
-      ...statsByFaculty
-        .filter(stat => stat.total > 0)
-        .map(stat => [
-          stat.faculty.name,
-          stat.total,
-          stat.completed,
-          stat.active,
-          stat.pending,
-          stat.overdue
-        ]),
-      [''],
-      ['Asignaciones Recientes'],
-      ['ID', 'Estudiante', 'Facultad', 'Estado', 'Fecha Asignación'],
-      ...filteredAssignments
-        .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
-        .slice(0, 10)
-        .map(assignment => [
-          assignment.id,
-          getStudentName(assignment.userId),
-          getFacultyName(assignment.userId),
-          statusTranslations[assignment.overallStatus || 'Pending'],
-          new Date(assignment.assignedDate).toLocaleDateString()
-        ])
-    ].map(row => row.join(',')).join('\n');
+    ];
+    const resumenSheet = XLSX.utils.aoa_to_sheet(resumenData);
+    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte-admin-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    // Hoja 2: Por Facultad
+    const facultadHeader = ['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas'];
+    const facultadRows = statsByFaculty
+      .filter(stat => stat.total > 0)
+      .map(stat => [stat.faculty.name, stat.total, stat.completed, stat.active, stat.pending, stat.overdue]);
+    const facultadSheet = XLSX.utils.aoa_to_sheet([facultadHeader, ...facultadRows]);
+    XLSX.utils.book_append_sheet(wb, facultadSheet, 'Por Facultad');
+
+    // Hoja 3: Recientes
+    const recientesHeader = ['ID', 'Estudiante', 'Facultad', 'Estado', 'Fecha Asignación'];
+    const recientesRows = filteredAssignments
+      .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
+      .slice(0, 50)
+      .map(a => [
+        a.id || '-',
+        getStudentName(a.userId),
+        getFacultyNameByUserId(a.userId),
+        statusTranslations[a.derivedStatus || 'Pending'],
+        a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+      ]);
+    const recientesSheet = XLSX.utils.aoa_to_sheet([recientesHeader, ...recientesRows]);
+    XLSX.utils.book_append_sheet(wb, recientesSheet, 'Recientes');
+
+    XLSX.writeFile(wb, `reporte-admin-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return (
@@ -683,9 +720,9 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge 
-                            className={statusColors[assignment.overallStatus || 'Pending']}
+                            className={statusColors[assignment.derivedStatus || 'Pending']}
                           >
-                            {statusTranslations[assignment.overallStatus || 'Pending']}
+                            {statusTranslations[assignment.derivedStatus || 'Pending']}
                           </Badge>
                           <Button variant="outline" size="sm">
                             Ver detalles
@@ -716,7 +753,7 @@ export default function AdminDashboard() {
               ) : (
                 <div className="space-y-3">
                   {filteredAssignments
-                    .filter(assignment => assignment.overallStatus === 'Overdue')
+                    .filter(assignment => assignment.derivedStatus === 'Overdue')
                     .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -729,7 +766,7 @@ export default function AdminDashboard() {
                               {getStudentName(assignment.userId)}
                             </p>
                             <p className="text-sm text-red-600">
-                              {getFacultyName(assignment.userId)} • Vencida el {assignment.dueDate?.toLocaleDateString()}
+                              {getFacultyNameByUserId(assignment.userId)} • Vencida el {assignment.dueDateObj ? format(assignment.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
                             </p>
                           </div>
                         </div>

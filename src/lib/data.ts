@@ -261,6 +261,11 @@ export const getProfessionalSchoolById = (id: string): ProfessionalSchool | unde
   return professionalSchools.find(ps => ps.id === id);
 };
 
+// Función para obtener una oficina por ID
+export const getOfficeById = (id: string): Office | undefined => {
+  return offices.find(o => o.id === id);
+};
+
 export const getAllFaculties = (): Faculty[] => {
   return faculties;
 };

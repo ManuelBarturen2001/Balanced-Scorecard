@@ -134,23 +134,30 @@ export default function CreateUserPage() {
           userData.professionalSchoolId = professionalSchoolId;
         }
         if (facultyBossName) {
-          userData.bossName = facultyBossName;
+          userData.facultyBossName = facultyBossName;
         }
         if (facultyBossEmail) {
-          userData.bossEmail = facultyBossEmail;
+          userData.facultyBossEmail = facultyBossEmail;
         }
       }
 
       // Agregar campos de oficina solo si pertenece a una oficina
       if (belongsToOffice && officeId) {
         userData.officeId = officeId;
-        // Si ya tiene jefe de facultad, no sobrescribir
-        if (!userData.bossName && officeBossName) {
-          userData.bossName = officeBossName;
+        if (officeBossName) {
+          userData.officeBossName = officeBossName;
         }
-        if (!userData.bossEmail && officeBossEmail) {
-          userData.bossEmail = officeBossEmail;
+        if (officeBossEmail) {
+          userData.officeBossEmail = officeBossEmail;
         }
+      }
+
+      // Priorizar jefe de facultad sobre oficina para bossName/bossEmail
+      if (facultyBossName || officeBossName) {
+        userData.bossName = facultyBossName || officeBossName;
+      }
+      if (facultyBossEmail || officeBossEmail) {
+        userData.bossEmail = facultyBossEmail || officeBossEmail;
       }
 
       await createUser(userData, password);

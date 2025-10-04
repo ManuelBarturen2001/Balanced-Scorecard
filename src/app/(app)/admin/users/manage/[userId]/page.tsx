@@ -34,8 +34,14 @@ export default function AdminEditUserPage() {
   const [facultyId, setFacultyId] = useState('');
   const [professionalSchoolId, setProfessionalSchoolId] = useState('');
   const [officeId, setOfficeId] = useState('');
+  const [belongsToFaculty, setBelongsToFaculty] = useState(false);
+  const [belongsToOffice, setBelongsToOffice] = useState(false);
   const [bossName, setBossName] = useState('');
   const [bossEmail, setBossEmail] = useState('');
+  const [facultyBossName, setFacultyBossName] = useState('');
+  const [facultyBossEmail, setFacultyBossEmail] = useState('');
+  const [officeBossName, setOfficeBossName] = useState('');
+  const [officeBossEmail, setOfficeBossEmail] = useState('');
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
@@ -77,8 +83,14 @@ export default function AdminEditUserPage() {
           setFacultyId(foundUser.facultyId || '');
           setProfessionalSchoolId(foundUser.professionalSchoolId || '');
           setOfficeId(foundUser.officeId || '');
+          setBelongsToFaculty(!!foundUser.facultyId);
+          setBelongsToOffice(!!foundUser.officeId);
           setBossName(foundUser.bossName || '');
           setBossEmail(foundUser.bossEmail || '');
+          setFacultyBossName(foundUser.facultyBossName || '');
+          setFacultyBossEmail(foundUser.facultyBossEmail || '');
+          setOfficeBossName(foundUser.officeBossName || '');
+          setOfficeBossEmail(foundUser.officeBossEmail || '');
         } else {
           setError('Usuario no encontrado');
           toast({
@@ -167,19 +179,47 @@ export default function AdminEditUserPage() {
         throw new Error('Usuario no encontrado');
       }
 
-      const updatedUserData = {
+      // Construir objeto de datos sin campos undefined
+      const updatedUserData: any = {
         name,
         email,
         avatar,
         role,
         roleType,
         availableRoles,
-        facultyId: facultyId || undefined,
-        professionalSchoolId: professionalSchoolId || undefined,
-        officeId: officeId || undefined,
-        bossName: bossName || undefined,
-        bossEmail: bossEmail || undefined,
       };
+
+      // Solo agregar campos si tienen valores válidos
+      if (belongsToFaculty && facultyId) {
+        updatedUserData.facultyId = facultyId;
+        if (professionalSchoolId) {
+          updatedUserData.professionalSchoolId = professionalSchoolId;
+        }
+        if (facultyBossName) {
+          updatedUserData.facultyBossName = facultyBossName;
+        }
+        if (facultyBossEmail) {
+          updatedUserData.facultyBossEmail = facultyBossEmail;
+        }
+      }
+
+      if (belongsToOffice && officeId) {
+        updatedUserData.officeId = officeId;
+        if (officeBossName) {
+          updatedUserData.officeBossName = officeBossName;
+        }
+        if (officeBossEmail) {
+          updatedUserData.officeBossEmail = officeBossEmail;
+        }
+      }
+
+      // Priorizar jefe de facultad sobre oficina para bossName/bossEmail
+      if (facultyBossName || officeBossName) {
+        updatedUserData.bossName = facultyBossName || officeBossName;
+      }
+      if (facultyBossEmail || officeBossEmail) {
+        updatedUserData.bossEmail = facultyBossEmail || officeBossEmail;
+      }
 
       await updateUser(userId, updatedUserData);
       
@@ -372,96 +412,159 @@ export default function AdminEditUserPage() {
                 )}
               </div>
 
-              {/* Información académica */}
+              {/* Información institucional */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Información Académica</h3>
+                <h3 className="text-lg font-semibold">Información Institucional</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="faculty">Facultad</Label>
-                    <Select value={facultyId} onValueChange={setFacultyId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione una facultad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {faculties.map((faculty) => (
-                          <SelectItem key={faculty.id} value={faculty.id}>
-                            {faculty.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="professionalSchool">Escuela Profesional</Label>
-                    <Select 
-                      value={professionalSchoolId} 
-                      onValueChange={setProfessionalSchoolId}
-                      disabled={!facultyId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {professionalSchools.map((school) => (
-                          <SelectItem key={school.id} value={school.id}>
-                            {school.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                {/* Pregunta principal */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">El usuario pertenece a una facultad u oficina?</Label>
+                  <div className="flex space-x-6">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="belongsToFaculty" 
+                        checked={belongsToFaculty}
+                        onCheckedChange={(checked) => {
+                          setBelongsToFaculty(checked as boolean);
+                          if (!checked) {
+                            setFacultyId("");
+                            setProfessionalSchoolId("");
+                            setFacultyBossName("");
+                            setFacultyBossEmail("");
+                          }
+                        }}
+                      />
+                      <Label htmlFor="belongsToFaculty">Facultad</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="belongsToOffice" 
+                        checked={belongsToOffice}
+                        onCheckedChange={(checked) => {
+                          setBelongsToOffice(checked as boolean);
+                          if (!checked) {
+                            setOfficeId("");
+                            setOfficeBossName("");
+                            setOfficeBossEmail("");
+                          }
+                        }}
+                      />
+                      <Label htmlFor="belongsToOffice">Oficina</Label>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Información de Oficina */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Información de Oficina</h3>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="office">Oficina</Label>
-                  <Select value={officeId} onValueChange={setOfficeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione una oficina" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {offices.map((office) => (
-                        <SelectItem key={office.id} value={office.id}>
-                          {office.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                {/* Campos de Facultad */}
+                {belongsToFaculty && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <h4 className="font-medium text-sm">Información de Facultad</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="faculty">Facultad *</Label>
+                        <Select value={facultyId} onValueChange={setFacultyId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccione una facultad" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {faculties.map((faculty) => (
+                              <SelectItem key={faculty.id} value={faculty.id}>
+                                {faculty.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="professionalSchool">Escuela Profesional</Label>
+                        <Select 
+                          value={professionalSchoolId} 
+                          onValueChange={setProfessionalSchoolId}
+                          disabled={!facultyId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={facultyId ? "Seleccione una escuela" : "Primero seleccione una facultad"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {professionalSchools.map((school) => (
+                              <SelectItem key={school.id} value={school.id}>
+                                {school.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="facultyBossName">Nombre del Jefe de Facultad</Label>
+                        <Input
+                          id="facultyBossName"
+                          value={facultyBossName}
+                          onChange={(e) => setFacultyBossName(e.target.value)}
+                          placeholder="Ingrese el nombre del jefe de facultad"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="facultyBossEmail">Correo del Jefe de Facultad</Label>
+                        <Input
+                          id="facultyBossEmail"
+                          type="email"
+                          value={facultyBossEmail}
+                          onChange={(e) => setFacultyBossEmail(e.target.value)}
+                          placeholder="jefe.facultad@unmsm.edu.pe"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              {/* Información del Jefe/Encargado */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Información del Jefe/Encargado</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bossName">Nombre del Jefe/Encargado</Label>
-                    <Input
-                      id="bossName"
-                      value={bossName}
-                      onChange={(e) => setBossName(e.target.value)}
-                      placeholder="Ingrese el nombre del jefe o encargado"
-                    />
+                {/* Campos de Oficina */}
+                {belongsToOffice && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <h4 className="font-medium text-sm">Información de Oficina</h4>
+                    <div className="space-y-2">
+                      <Label htmlFor="office">Oficina *</Label>
+                      <Select value={officeId} onValueChange={setOfficeId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione una oficina" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {offices.map((office) => (
+                            <SelectItem key={office.id} value={office.id}>
+                              {office.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="officeBossName">Nombre del Jefe de Oficina</Label>
+                        <Input
+                          id="officeBossName"
+                          value={officeBossName}
+                          onChange={(e) => setOfficeBossName(e.target.value)}
+                          placeholder="Ingrese el nombre del jefe de oficina"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="officeBossEmail">Correo del Jefe de Oficina</Label>
+                        <Input
+                          id="officeBossEmail"
+                          type="email"
+                          value={officeBossEmail}
+                          onChange={(e) => setOfficeBossEmail(e.target.value)}
+                          placeholder="jefe.oficina@unmsm.edu.pe"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="bossEmail">Correo del Jefe/Encargado</Label>
-                    <Input
-                      id="bossEmail"
-                      type="email"
-                      value={bossEmail}
-                      onChange={(e) => setBossEmail(e.target.value)}
-                      placeholder="Ingrese el correo del jefe o encargado"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
             </CardContent>
             

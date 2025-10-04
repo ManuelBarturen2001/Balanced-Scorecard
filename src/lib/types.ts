@@ -17,6 +17,11 @@ export interface User {
   officeId?: string;
   bossName?: string;
   bossEmail?: string;
+  // Jefes separados por facultad y oficina
+  facultyBossName?: string;
+  facultyBossEmail?: string;
+  officeBossName?: string;
+  officeBossEmail?: string;
   // Para roles variantes, pueden tener múltiples roles
   availableRoles?: UserRole[];
   // Para calificadores, especificar en qué facultades puede calificar

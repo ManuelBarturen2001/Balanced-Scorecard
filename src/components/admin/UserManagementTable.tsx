@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Edit3, Trash2, ShieldCheck, UserCheck, Eye } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, UserCheck, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,13 +58,6 @@ const roleColors: Record<UserRole, string> = {
 export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserManagementTableProps) {
   const { toast } = useToast();
   
-  const handleRoleChange = (userId: string, newRole: UserRole) => {
-    onUserUpdate(userId, { role: newRole });
-    toast({
-      title: "Rol de Usuario Actualizado (Simulado)",
-      description: `El rol del usuario ha sido cambiado a ${roleTranslations[newRole]}. Esta es una acción simulada y los cambios no persisten.`,
-    });
-  };
 
   const handleDeactivateUser = (userId: string, userName: string) => {
     onUserDelete(userId);
@@ -97,6 +90,7 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
             <TableHead className="px-4">Rol</TableHead>
             <TableHead className="px-4">Tipo</TableHead>
             <TableHead className="px-4">Facultad</TableHead>
+            <TableHead className="px-4">Oficina</TableHead>
             <TableHead className="text-right px-4">Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -141,6 +135,9 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
               <TableCell className="px-4 text-muted-foreground">
                 {user.facultyId ? 'Facultad asignada' : 'Sin facultad'}
               </TableCell>
+              <TableCell className="px-4 text-muted-foreground">
+                {user.officeId ? 'Oficina asignada' : 'Sin oficina'}
+              </TableCell>
               <TableCell className="px-4 text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -163,14 +160,6 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
                         <Eye className="mr-2 h-4 w-4" />
                         Ver Detalles
                       </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => handleRoleChange(user.id, user.role === 'admin' ? 'responsable' : 'admin')}
-                      className="flex items-center"
-                    >
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      Cambiar Rol (Simulado)
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <AlertDialog>

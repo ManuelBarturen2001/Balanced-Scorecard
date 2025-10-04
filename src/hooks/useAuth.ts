@@ -15,6 +15,7 @@ interface AuthContextType {
   updateUserProfile: (updatedData: Partial<Omit<User, 'id' | 'role'>>) => Promise<void>;
   changePassword: (newPassword: string) => Promise<void>;
   markAsExperienced: () => Promise<void>;
+  reloadUser: () => Promise<void>;
   isAdmin: boolean;
   isAsignador: boolean;
   isCalificador: boolean;
@@ -98,6 +99,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push('/login');
   }, [router]);
 
+  // Forzar recarga del usuario desde Firestore para sincronizar cambios hechos por el administrador
+  const reloadUser = useCallback(async () => {
+    try {
+      if (!user) return;
+      const { getUserById } = await import('@/lib/data');
+      const latest = await getUserById(user.id);
+      if (latest) {
+        const defaultUserData = {
+          ...latest,
+          roleType: latest.roleType || 'variante',
+          availableRoles: latest.availableRoles || [latest.role],
+          notifications: latest.notifications || [],
+          stats: latest.stats || {},
+        } as User;
+        setUser(defaultUserData);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(defaultUserData));
+      }
+    } catch (error) {
+      console.error('Failed to reload user', error);
+    }
+  }, [user]);
+
   const isAdmin = user?.role === 'admin';
   const isAsignador = user?.role === 'asignador';
   const isCalificador = user?.role === 'calificador';
@@ -139,6 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user, 
         login, 
         logout, 
+        reloadUser,
         isAdmin, 
         isAsignador,
         isCalificador,

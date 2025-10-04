@@ -8,15 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Save, UserCircle, ShieldQuestion, Lock, AlertCircle, GraduationCap, Building2 } from 'lucide-react';
+import { Save, UserCircle, ShieldQuestion, Lock, AlertCircle, GraduationCap, Building2, Landmark } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getFacultyById, getProfessionalSchoolById } from '@/lib/data';
-import type { Faculty, ProfessionalSchool } from '@/lib/types';
+import { getFacultyById, getProfessionalSchoolById, getOfficeById } from '@/lib/data';
+import type { Faculty, ProfessionalSchool, Office, UserRole } from '@/lib/types';
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, updateUserProfile, changePassword, markAsExperienced } = useAuth();
+  const { user, loading: authLoading, updateUserProfile, changePassword, markAsExperienced, reloadUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -32,6 +32,7 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState('');
   const [faculty, setFaculty] = useState<Faculty | null>(null);
   const [professionalSchool, setProfessionalSchool] = useState<ProfessionalSchool | null>(null);
+  const [office, setOffice] = useState<Office | null>(null);
 
   // Verificar si es el primer login
   const isFirstLogin = searchParams.get('firstLogin') === 'true' || user?.isFirstLogin;
@@ -40,12 +41,14 @@ export default function ProfilePage() {
     if (!authLoading && !user) {
       router.replace('/login');
     } else if (user) {
+      // Asegurar datos frescos por si el Admin actualizó facultad/escuela/oficina
+      reloadUser();
       console.log('user', user);
       setName(user.name);
       setEmail(user.email);
       setAvatar(user.avatar || '');
       
-      // Obtener información de facultad y escuela profesional
+      // Obtener información de facultad, escuela profesional y oficina
       if (user.facultyId) {
         const userFaculty = getFacultyById(user.facultyId);
         setFaculty(userFaculty || null);
@@ -55,8 +58,13 @@ export default function ProfilePage() {
         const userProfessionalSchool = getProfessionalSchoolById(user.professionalSchoolId);
         setProfessionalSchool(userProfessionalSchool || null);
       }
+
+      if (user.officeId) {
+        const userOffice = getOfficeById(user.officeId);
+        setOffice(userOffice || null);
+      }
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, reloadUser]);
 
   const getInitials = (nameStr: string = "") => {
     const names = nameStr.split(' ');
@@ -67,6 +75,20 @@ export default function ProfilePage() {
       initials = names[0].substring(0,2);
     }
     return initials.toUpperCase() || 'U';
+  };
+
+  const roleToLabel = (role: UserRole) => {
+    switch (role) {
+      case 'admin':
+        return 'Administrador';
+      case 'asignador':
+        return 'Asignador';
+      case 'calificador':
+        return 'Calificador / Jurado';
+      case 'responsable':
+      default:
+        return 'Responsable';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -247,9 +269,9 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              {/* Información académica no editable */}
+              {/* Información institucional no editable */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold text-muted-foreground">Información Académica</h3>
+                <h3 className="text-lg font-semibold text-muted-foreground">Información Institucional</h3>
                 
                 <div className="space-y-2">
                   <Label>Facultad</Label>
@@ -266,15 +288,69 @@ export default function ProfilePage() {
                     <span>{professionalSchool ? professionalSchool.name : 'No asignada'}</span>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Oficina</Label>
+                  <div className="flex items-center space-x-2 text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
+                    <Landmark className="h-5 w-5 text-primary" />
+                    <span>{office ? office.name : 'No asignada'}</span>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
                   <Label>Rol</Label>
                   <div className="flex items-center space-x-2 text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
                       <ShieldQuestion className="h-5 w-5 text-primary" />
-                      <span>{user.role === 'admin' ? 'Administrador' : 'Responsable'} (No editable)</span>
+                      <span>{roleToLabel(user.role)} (No editable)</span>
                   </div>
               </div>
+
+              {/* Jefe/Encargado asignado por el Administrador */}
+              {(user.bossName || user.bossEmail || user.facultyBossName || user.facultyBossEmail || user.officeBossName || user.officeBossEmail) && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-muted-foreground">Jefe/Encargado</h3>
+                  
+                  {/* Jefe de Facultad */}
+                  {(user.facultyBossName || user.facultyBossEmail) && (
+                    <div className="space-y-2">
+                      <Label>Jefe de Facultad</Label>
+                      <div className="text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
+                        <div className="flex flex-col">
+                          {user.facultyBossName && <span className="font-medium">{user.facultyBossName}</span>}
+                          {user.facultyBossEmail && <span className="text-xs">{user.facultyBossEmail}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Jefe de Oficina */}
+                  {(user.officeBossName || user.officeBossEmail) && (
+                    <div className="space-y-2">
+                      <Label>Jefe de Oficina</Label>
+                      <div className="text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
+                        <div className="flex flex-col">
+                          {user.officeBossName && <span className="font-medium">{user.officeBossName}</span>}
+                          {user.officeBossEmail && <span className="text-xs">{user.officeBossEmail}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Jefe general (para compatibilidad) */}
+                  {(user.bossName || user.bossEmail) && !(user.facultyBossName || user.facultyBossEmail || user.officeBossName || user.officeBossEmail) && (
+                    <div className="space-y-2">
+                      <Label>Jefe/Encargado</Label>
+                      <div className="text-sm p-2.5 bg-muted/50 border border-input rounded-md text-muted-foreground">
+                        <div className="flex flex-col">
+                          {user.bossName && <span className="font-medium">{user.bossName}</span>}
+                          {user.bossEmail && <span className="text-xs">{user.bossEmail}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
             <CardFooter className="flex justify-end">
               <Button type="submit" disabled={isSaving}>

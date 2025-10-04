@@ -370,9 +370,12 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
         return;
       }
 
+      // Convertir la fecha a formato ISO string para consistencia
       const selectedDueDate = new Date(dueDate);
-      // Asegurarnos de que no se vea afectada por la zona horaria local
-      selectedDueDate.setMinutes(selectedDueDate.getMinutes() - selectedDueDate.getTimezoneOffset());
+      // Establecer la hora a las 23:59 para que sea el final del día
+      selectedDueDate.setHours(23, 59, 0, 0);
+      // Guardar como string en formato ISO para evitar problemas de timezone
+      const dueDateISO = selectedDueDate.toISOString();
 
       // Obtener el nombre del responsable
       const responsableUser = users.find(u => u.id === targetUserId);
@@ -382,12 +385,12 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
         userId: targetUserId,
         indicatorId: selectedIndicatorId,
         perspectiveId: selectedPerspectiveId,
-        assignedDate: new Date(),
-        dueDate: selectedDueDate,
+        assignedDate: new Date().toISOString(),
+        dueDate: dueDateISO,
         assignedVerificationMethods: enabledVerificationMethods.map((method) => ({
           name: method,
           status: 'Pending',
-          dueDate: selectedDueDate,
+          dueDate: dueDateISO,
           notes: ''
         })),
         overallStatus: 'Pending',
@@ -756,11 +759,14 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
           <div className="space-y-2">
             <Label>Fecha de Vencimiento</Label>
             <Input
-              type="datetime-local"
+              type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Selecciona solo la fecha. La hora se establecerá automáticamente a las 23:59.
+            </p>
             {dueDateError && (
               <p className="text-sm text-red-600">{dueDateError}</p>
             )}

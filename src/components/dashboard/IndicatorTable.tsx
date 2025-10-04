@@ -46,8 +46,41 @@ const statusColorClasses: Record<VerificationStatus, string> = {
 const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = ({ vm }) => {
   console.log(vm)
   let currentStatus = vm.status;
-  //@ts-ignore
-  if (vm.status === 'Pending' && vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000))) {
+  
+  // Función para parsear fechas de diferentes formatos
+  const parseDate = (date: any): Date | null => {
+    if (!date) return null;
+    
+    try {
+      // Si es un timestamp de Firestore
+      if (date.seconds) {
+        return new Date(date.seconds * 1000);
+      }
+      // Si es un string ISO
+      if (typeof date === 'string') {
+        return new Date(date);
+      }
+      // Si ya es un Date
+      if (date instanceof Date) {
+        return date;
+      }
+      // Si es un objeto con toDate (Firestore Timestamp)
+      if (typeof date === 'object' && date.toDate) {
+        return date.toDate();
+      }
+      // Si es un número (timestamp)
+      if (typeof date === 'number') {
+        return new Date(date);
+      }
+      return new Date(date);
+    } catch (error) {
+      console.error('Error parsing date:', error, date);
+      return null;
+    }
+  };
+  
+  const dueDate = parseDate(vm.dueDate);
+  if (vm.status === 'Pending' && dueDate && isPast(dueDate)) {
     currentStatus = 'Overdue';
   }
   const Icon = statusIcons[currentStatus] || AlertCircle;
@@ -64,49 +97,27 @@ const VerificationMethodDetails: React.FC<{ vm: AssignedVerificationMethod }> = 
         </Badge>
       </div>
       
-      {
-      //@ts-ignore
-      vm.dueDate && <p className="text-xs mt-1.5 text-muted-foreground">Vence: <span className="font-medium text-foreground">{(() => {
-        try {
-          const date = vm.dueDate as any;
-          if (!date) return 'Fecha no disponible';
-          
-          let dateObj: Date;
-          if (date.seconds) {
-            dateObj = new Date(date.seconds * 1000);
-          } else if (date instanceof Date) {
-            dateObj = date;
-          } else if (typeof date === 'object' && date.toDate) {
-            dateObj = date.toDate();
-          } else if (typeof date === 'number') {
-            dateObj = new Date(date);
-          } else if (typeof date === 'string') {
-            dateObj = new Date(date);
-          } else {
-            dateObj = new Date(date);
-          }
-          
-          if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
-            return 'Fecha no disponible';
-          }
-          
-          return format(dateObj, 'dd-MMM-yyyy', { locale: es });
-        } catch (error) {
-          console.error('Error formatting date:', error);
-          return 'Fecha no disponible';
-        }
-      })()}</span></p>
-      }
+      {dueDate && (
+        <p className="text-xs mt-1.5 text-muted-foreground">
+          Vence: <span className="font-medium text-foreground">
+            {format(dueDate, 'dd-MMM-yyyy', { locale: es })}
+          </span>
+        </p>
+      )}
       
       {vm.submittedFile && (
         <div className="mt-2 text-xs flex items-center gap-2 border-t border-border pt-2">
           <FileText className="h-4 w-4 text-primary" />
           <div>
             <span className="font-medium text-foreground">{vm.submittedFile.name}</span>
-            {
-              //@ts-ignore
-             vm.submittedFile.uploadedAt && <span className="text-muted-foreground text-xs block">Subido: {format(new Date(vm.dueDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span>
-            }
+            {vm.submittedFile.uploadedAt && (
+              <span className="text-muted-foreground text-xs block">
+                Subido: {(() => {
+                  const uploadDate = parseDate(vm.submittedFile.uploadedAt);
+                  return uploadDate ? format(uploadDate, 'dd-MMM-yyyy HH:mm:ss', { locale: es }) : 'Fecha no disponible';
+                })()}
+              </span>
+            )}
           </div>
           <Button variant="outline" size="sm" className="h-auto py-1 px-2 ml-auto text-xs" onClick={() => alert(`Visualizando ${vm.submittedFile?.name}`)}>
             <Eye className="h-3 w-3 mr-1" /> Ver
@@ -207,9 +218,38 @@ export function IndicatorTable({ assignedIndicators }: IndicatorTableProps) {
               );
             }
 
+            // Función para parsear fechas (reutilizamos la misma lógica)
+            const parseDate = (date: any): Date | null => {
+              if (!date) return null;
+              
+              try {
+                if (date.seconds) {
+                  return new Date(date.seconds * 1000);
+                }
+                if (typeof date === 'string') {
+                  return new Date(date);
+                }
+                if (date instanceof Date) {
+                  return date;
+                }
+                if (typeof date === 'object' && date.toDate) {
+                  return date.toDate();
+                }
+                if (typeof date === 'number') {
+                  return new Date(date);
+                }
+                return new Date(date);
+              } catch (error) {
+                console.error('Error parsing date:', error, date);
+                return null;
+              }
+            };
+
             let overallStatus = assignedInd.overallStatus || 'Pending';
-            //@ts-ignore
-            if (overallStatus === 'Pending' && assignedInd.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && vm.status === 'Pending')) {
+            if (overallStatus === 'Pending' && assignedInd.assignedVerificationMethods.some(vm => {
+              const dueDate = parseDate(vm.dueDate);
+              return dueDate && isPast(dueDate) && vm.status === 'Pending';
+            })) {
                 overallStatus = 'Overdue';
             }
             const OverallStatusIcon = statusIcons[overallStatus] || AlertCircle;
@@ -224,9 +264,10 @@ export function IndicatorTable({ assignedIndicators }: IndicatorTableProps) {
                         {perspective?.icon && <perspective.icon className="h-3.5 w-3.5" />}
                         <span>{perspective?.name}</span>
                         <span className="hidden sm:inline-block">|</span>
-                        <span className="whitespace-nowrap">Asignado: {
-                        //@ts-ignore
-                        format(new Date(assignedInd.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}</span>
+                        <span className="whitespace-nowrap">Asignado: {(() => {
+                          const assignedDate = parseDate(assignedInd.assignedDate);
+                          return assignedDate ? format(assignedDate, 'dd-MMM-yyyy HH:mm:ss', { locale: es }) : 'Fecha no disponible';
+                        })()}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

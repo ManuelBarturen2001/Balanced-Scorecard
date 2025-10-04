@@ -110,7 +110,7 @@ export interface AssignedVerificationMethod {
   status: VerificationStatus;
   submittedFile?: MockFile | null;
   notes?: string;
-  dueDate?: Date;
+  dueDate?: Date | string; // Permitir tanto Date como string ISO
   fileHistory?: MockFile[]; // Historial de archivos subidos
 }
 
@@ -119,11 +119,11 @@ export interface AssignedIndicator {
   id?: string;
   userId: string;
   indicatorId: string;
-  dueDate?: Date;
+  dueDate?: Date | string; // Permitir tanto Date como string ISO
   perspectiveId: string;
   assignedVerificationMethods: AssignedVerificationMethod[];
   overallStatus?: VerificationStatus;
-  assignedDate: Date;
+  assignedDate: Date | string; // Permitir tanto Date como string ISO
   jury: string[];
 }
 

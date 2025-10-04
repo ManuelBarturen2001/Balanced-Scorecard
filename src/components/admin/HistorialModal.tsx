@@ -19,7 +19,7 @@ import {
   FileText, 
   XCircle,
   Calendar,
-  User,
+  User as UserIcon,
   Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -185,7 +185,7 @@ export function HistorialModal({
       <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+            <UserIcon className="h-5 w-5" />
             Historial de Calificaciones
           </DialogTitle>
           <DialogDescription>

@@ -5,22 +5,36 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { getAllUsers, getFacultyById, getOfficeById } from '@/lib/data';
 import type { User, Faculty, Office } from '@/lib/types';
-import { UserCheck, Eye, Building2, Landmark } from 'lucide-react';
+import { UserCheck, Eye, Building2, Landmark, Search, Filter, X } from 'lucide-react';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { getAllFaculties, getAllProfessionalSchools, getAllOffices } from '@/lib/data';
+import type { ProfessionalSchool } from '@/lib/types';
 
 export default function CalificadoresPage() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [calificadores, setCalificadores] = useState<User[]>([]);
+  const [filteredCalificadores, setFilteredCalificadores] = useState<User[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [professionalSchools, setProfessionalSchools] = useState<ProfessionalSchool[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estados para filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState('all');
+  const [selectedSchool, setSelectedSchool] = useState('all');
+  const [selectedOffice, setSelectedOffice] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -31,34 +45,20 @@ export default function CalificadoresPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [users, facultiesData, officesData] = await Promise.all([
+        const [users, facultiesData, professionalSchoolsData, officesData] = await Promise.all([
           getAllUsers(),
-          getFacultyById(''),
-          getOfficeById('')
+          getAllFaculties(),
+          getAllProfessionalSchools(),
+          getAllOffices()
         ]);
         
         // Filtrar solo usuarios con rol calificador
         const calificadoresData = users.filter(user => user.role === 'calificador');
         setCalificadores(calificadoresData);
-        
-        // Cargar facultades y oficinas para mostrar nombres
-        const facultiesMap = new Map();
-        const officesMap = new Map();
-        
-        // Simular carga de facultades y oficinas (en un caso real, cargarías todas)
-        calificadoresData.forEach(calificador => {
-          if (calificador.facultyId) {
-            const faculty = getFacultyById(calificador.facultyId);
-            if (faculty) facultiesMap.set(calificador.facultyId, faculty);
-          }
-          if (calificador.officeId) {
-            const office = getOfficeById(calificador.officeId);
-            if (office) officesMap.set(calificador.officeId, office);
-          }
-        });
-        
-        setFaculties(Array.from(facultiesMap.values()));
-        setOffices(Array.from(officesMap.values()));
+        setFilteredCalificadores(calificadoresData);
+        setFaculties(facultiesData);
+        setProfessionalSchools(professionalSchoolsData);
+        setOffices(officesData);
         
       } catch (error) {
         console.error('Error fetching calificadores:', error);
@@ -97,6 +97,58 @@ export default function CalificadoresPage() {
     const office = getOfficeById(officeId);
     return office?.name || 'Sin oficina';
   };
+
+  const getSchoolName = (schoolId: string) => {
+    const school = professionalSchools.find(s => s.id === schoolId);
+    return school?.name || 'Sin escuela';
+  };
+
+  // Función para aplicar filtros
+  const applyFilters = () => {
+    let filtered = calificadores;
+
+    // Filtro por término de búsqueda
+    if (searchTerm) {
+      filtered = filtered.filter(calificador =>
+        calificador.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        calificador.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtro por facultad
+    if (selectedFaculty !== 'all') {
+      filtered = filtered.filter(calificador => calificador.facultyId === selectedFaculty);
+    }
+
+    // Filtro por escuela profesional
+    if (selectedSchool !== 'all') {
+      filtered = filtered.filter(calificador => calificador.professionalSchoolId === selectedSchool);
+    }
+
+    // Filtro por oficina
+    if (selectedOffice !== 'all') {
+      filtered = filtered.filter(calificador => calificador.officeId === selectedOffice);
+    }
+
+    setFilteredCalificadores(filtered);
+  };
+
+  // Aplicar filtros cuando cambien los valores
+  useEffect(() => {
+    applyFilters();
+  }, [searchTerm, selectedFaculty, selectedSchool, selectedOffice, calificadores]);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedFaculty('all');
+    setSelectedSchool('all');
+    setSelectedOffice('all');
+  };
+
+  // Filtrar escuelas por facultad seleccionada
+  const filteredSchools = selectedFaculty === 'all' 
+    ? professionalSchools 
+    : professionalSchools.filter(school => school.facultyId === selectedFaculty);
 
   if (authLoading || isLoading) {
     return (
@@ -141,10 +193,131 @@ export default function CalificadoresPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filtros */}
+          <div className="space-y-4 mb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Filtros de Búsqueda</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
+              </Button>
+            </div>
+
+            {showFilters && (
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                {/* Búsqueda por nombre */}
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nombre o email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchTerm('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                {/* Filtros por facultad, escuela y oficina */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-sm">Facultad</Label>
+                    <Select value={selectedFaculty} onValueChange={(value) => {
+                      setSelectedFaculty(value);
+                      setSelectedSchool('all'); // Reset school when faculty changes
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas las facultades" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las facultades</SelectItem>
+                        {faculties.map((faculty) => (
+                          <SelectItem key={faculty.id} value={faculty.id}>
+                            {faculty.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm">Escuela Profesional</Label>
+                    <Select 
+                      value={selectedSchool} 
+                      onValueChange={setSelectedSchool}
+                      disabled={selectedFaculty === 'all'}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedFaculty === 'all' ? "Selecciona una facultad primero" : "Todas las escuelas"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las escuelas</SelectItem>
+                        {filteredSchools.map((school) => (
+                          <SelectItem key={school.id} value={school.id}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm">Oficina</Label>
+                    <Select value={selectedOffice} onValueChange={setSelectedOffice}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas las oficinas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las oficinas</SelectItem>
+                        {offices.map((office) => (
+                          <SelectItem key={office.id} value={office.id}>
+                            {office.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {filteredCalificadores.length} calificador{filteredCalificadores.length !== 1 ? 'es' : ''} encontrado{filteredCalificadores.length !== 1 ? 's' : ''}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearFilters}
+                  >
+                    Limpiar Filtros
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {calificadores.length === 0 ? (
             <div className="text-center py-8">
               <UserCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground">No hay calificadores registrados en el sistema.</p>
+            </div>
+          ) : filteredCalificadores.length === 0 ? (
+            <div className="text-center py-8">
+              <UserCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No se encontraron calificadores con los filtros aplicados.</p>
+              <Button variant="outline" onClick={clearFilters} className="mt-2">
+                Limpiar Filtros
+              </Button>
             </div>
           ) : (
             <div className="rounded-lg border border-border shadow-sm bg-card overflow-x-auto">
@@ -160,7 +333,7 @@ export default function CalificadoresPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {calificadores.map((calificador) => (
+                  {filteredCalificadores.map((calificador) => (
                     <TableRow key={calificador.id} className="hover:bg-muted/50">
                       <TableCell className="px-4">
                         <Avatar className="h-10 w-10">
@@ -205,3 +378,4 @@ export default function CalificadoresPage() {
     </div>
   );
 }
+

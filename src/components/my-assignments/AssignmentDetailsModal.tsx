@@ -49,6 +49,42 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
   const [perspectiveInfo, setPerspectiveInfo] = useState<Perspective | undefined>();
   const [isLoading, setIsLoading] = useState(true);
 
+  // Utilidad robusta para parsear fechas provenientes de diferentes fuentes (Firestore Timestamp, Date, string, number)
+  const parseDate = (date: any): Date | null => {
+    if (!date) return null;
+    try {
+      // Firestore Timestamp-like { seconds: number }
+      if (typeof date === 'object' && date !== null && 'seconds' in date) {
+        const seconds = (date as any).seconds as number;
+        return new Date(seconds * 1000);
+      }
+      // Firestore Timestamp con método toDate()
+      if (typeof date === 'object' && date !== null && typeof (date as any).toDate === 'function') {
+        return (date as any).toDate();
+      }
+      // Date
+      if (date instanceof Date) {
+        return isNaN(date.getTime()) ? null : date;
+      }
+      // number (ms)
+      if (typeof date === 'number') {
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // string ISO/parseable
+      if (typeof date === 'string') {
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Fallback
+      const d = new Date(date);
+      return isNaN(d.getTime()) ? null : d;
+    } catch (err) {
+      console.error('Error parsing date in AssignmentDetailsModal:', err, date);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -72,9 +108,14 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
   if (!indicator) return null;
 
   let overallStatus = indicator.overallStatus || 'Pending';
-  //@ts-ignore
-  if (overallStatus === 'Pending' && indicator.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && vm.status === 'Pending')) {
-      overallStatus = 'Overdue';
+  if (
+    overallStatus === 'Pending' &&
+    indicator.assignedVerificationMethods.some(vm => {
+      const due = parseDate(vm.dueDate);
+      return vm.status === 'Pending' && due && isPast(due);
+    })
+  ) {
+    overallStatus = 'Overdue';
   }
   const OverallStatusIcon = statusIconsModal[overallStatus] || Info;
 
@@ -109,10 +150,10 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
   <p className="text-left">
     Asignado: 
     <span className="font-semibold text-foreground ml-1">
-      {
-        // @ts-ignore
-        format(new Date(indicator.assignedDate?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })
-      }
+      {(() => {
+        const assigned = parseDate((indicator as any).assignedDate);
+        return assigned ? format(assigned, 'dd-MMM-yyyy HH:mm:ss', { locale: es }) : 'Fecha no disponible';
+      })()}
     </span>
   </p>
 </div>  
@@ -124,8 +165,11 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
             {indicator.assignedVerificationMethods.map((vm,index) => {
               let currentVmStatus = vm.status;
               //@ts-ignore
-              if (vm.status === 'Pending' && vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000))) {
+              if (vm.status === 'Pending') {
+                const due = parseDate(vm.dueDate);
+                if (due && isPast(due)) {
                 currentVmStatus = 'Overdue';
+                }
               }
               const VmStatusIcon = statusIconsModal[currentVmStatus] || Info;
               return (
@@ -141,25 +185,8 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                   <p className="text-xs text-muted-foreground">
                     Vence: {(() => {
                       try {
-                        const date = vm.dueDate as any;
-                        if (!date) return 'Fecha no disponible';
-                        
-                        let dateObj: Date;
-                        if (date.seconds) {
-                          dateObj = new Date(date.seconds * 1000);
-                        } else if (date instanceof Date) {
-                          dateObj = date;
-                        } else if (typeof date === 'object' && date.toDate) {
-                          dateObj = date.toDate();
-                        } else if (typeof date === 'number') {
-                          dateObj = new Date(date);
-                        } else if (typeof date === 'string') {
-                          dateObj = new Date(date);
-                        } else {
-                          dateObj = new Date(date);
-                        }
-                        
-                        if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
+                        const dateObj = parseDate(vm.dueDate as any);
+                        if (!dateObj) {
                           return 'Fecha no disponible';
                         }
                         
@@ -180,9 +207,10 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
                         </span>
                         {vm.submittedFile.uploadedAt && (
                              <span className="text-muted-foreground text-xs block">
-                                Subido: {
-                                 //@ts-ignore
-                                format(new Date(vm.submittedFile?.uploadedAt?.seconds * 1000), 'dd-MMM-yyyy HH:mm:ss', { locale: es })}
+                                Subido: {(() => {
+                                  const uploaded = parseDate(vm.submittedFile?.uploadedAt as any);
+                                  return uploaded ? format(uploaded, 'dd-MMM-yyyy HH:mm:ss', { locale: es }) : 'Fecha no disponible';
+                                })()}
                             </span>
                         )}
                          {vm.submittedFile.size && (

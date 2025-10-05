@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { AssignedIndicator, VerificationStatus } from '@/lib/types';
+import { isPast, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { getAllAssignedIndicators } from '@/lib/data';
 
 const statusColors = {
@@ -69,21 +71,45 @@ export default function UsuarioDashboard() {
     );
   }
 
-  const totalAssignments = assignments.length;
-  const completedAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Approved'
-  ).length;
-  const pendingAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Pending'
-  ).length;
-  const overdueAssignments = assignments.filter(
-    assignment => assignment.overallStatus === 'Overdue'
-  ).length;
+  const parseDate = (date: any): Date | null => {
+    if (!date) return null;
+    if (typeof date === 'object' && 'seconds' in date) return new Date((date as any).seconds * 1000);
+    if (typeof date === 'object' && typeof (date as any).toDate === 'function') return (date as any).toDate();
+    if (date instanceof Date) return isNaN(date.getTime()) ? null : date;
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const deriveStatus = (a: AssignedIndicator): VerificationStatus => {
+    const base = a.overallStatus || 'Pending';
+    if (base === 'Approved' || base === 'Rejected' || base === 'Submitted') return base;
+    const overdue = a.assignedVerificationMethods?.some(vm => {
+      const due = parseDate((vm as any).dueDate);
+      return vm.status === 'Pending' && due && isPast(due);
+    });
+    return overdue ? 'Overdue' : 'Pending';
+  };
+
+  const normalized = assignments.map(a => ({
+    ...a,
+    derivedStatus: deriveStatus(a),
+    assignedDateObj: parseDate((a as any).assignedDate),
+    dueDateObj: (() => {
+      const dates = (a.assignedVerificationMethods || []).map(vm => parseDate((vm as any).dueDate)).filter(Boolean) as Date[];
+      if (dates.length === 0) return parseDate((a as any).dueDate);
+      return new Date(Math.min(...dates.map(d => d.getTime())));
+    })()
+  }));
+
+  const totalAssignments = normalized.length;
+  const completedAssignments = normalized.filter(a => a.derivedStatus === 'Approved').length;
+  const pendingAssignments = normalized.filter(a => a.derivedStatus === 'Pending').length;
+  const overdueAssignments = normalized.filter(a => a.derivedStatus === 'Overdue').length;
 
   const completionRate = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
 
-  const recentAssignments = assignments
-    .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
+  const recentAssignments = normalized
+    .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
     .slice(0, 5);
 
   return (
@@ -209,15 +235,16 @@ export default function UsuarioDashboard() {
                         <div>
                           <p className="font-medium">Asignación #{assignment.id}</p>
                           <p className="text-sm text-muted-foreground">
-                            Asignada el {new Date(assignment.assignedDate).toLocaleDateString()}
+                            
+                            Asignada el {assignment.assignedDateObj ? format(assignment.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'} | Vence el {assignment.dueDateObj ? format(assignment.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge 
-                          className={statusColors[assignment.overallStatus || 'Pending']}
+                          className={statusColors[assignment.derivedStatus || 'Pending']}
                         >
-                          {statusTranslations[assignment.overallStatus || 'Pending']}
+                          {statusTranslations[assignment.derivedStatus || 'Pending']}
                         </Badge>
                         <Button variant="outline" size="sm">
                           Ver detalles
@@ -259,7 +286,7 @@ export default function UsuarioDashboard() {
                           <div>
                             <p className="font-medium">Asignación #{assignment.id}</p>
                             <p className="text-sm text-red-600">
-                              Vencida el {assignment.dueDate?.toLocaleDateString()}
+                              Vencida el {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : '-'}
                             </p>
                           </div>
                         </div>

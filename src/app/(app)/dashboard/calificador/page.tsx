@@ -17,11 +17,15 @@ import {
   BarChart3,
   Users,
   Star,
-  Timer
+  Timer,
+  FileDown,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { AssignedIndicator, VerificationStatus, User } from '@/lib/types';
+import { isPast, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { getAllAssignedIndicators, getAllUsers } from '@/lib/data';
 
 const statusColors = {
@@ -82,21 +86,51 @@ export default function CalificadorDashboard() {
     );
   }
 
-  const totalEvaluations = assignments.length;
-  const completedEvaluations = assignments.filter(
-    assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected'
+  const parseDate = (date: any): Date | null => {
+    if (!date) return null;
+    if (typeof date === 'object' && 'seconds' in date) return new Date((date as any).seconds * 1000);
+    if (typeof date === 'object' && typeof (date as any).toDate === 'function') return (date as any).toDate();
+    if (date instanceof Date) return isNaN(date.getTime()) ? null : date;
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const deriveStatus = (a: AssignedIndicator): VerificationStatus => {
+    const base = a.overallStatus || 'Pending';
+    if (base === 'Approved' || base === 'Rejected' || base === 'Submitted') return base;
+    const overdue = a.assignedVerificationMethods?.some(vm => {
+      const due = parseDate((vm as any).dueDate);
+      return vm.status === 'Pending' && due && isPast(due);
+    });
+    return overdue ? 'Overdue' : 'Pending';
+  };
+
+  const normalized = assignments.map(a => ({
+    ...a,
+    derivedStatus: deriveStatus(a),
+    assignedDateObj: parseDate((a as any).assignedDate),
+    dueDateObj: (() => {
+      const dates = (a.assignedVerificationMethods || []).map(vm => parseDate((vm as any).dueDate)).filter(Boolean) as Date[];
+      if (dates.length === 0) return parseDate((a as any).dueDate);
+      return new Date(Math.min(...dates.map(d => d.getTime())));
+    })()
+  }));
+
+  const totalEvaluations = normalized.length;
+  const completedEvaluations = normalized.filter(
+    assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected'
   ).length;
-  const pendingEvaluations = assignments.filter(
-    assignment => assignment.overallStatus === 'Submitted'
+  const pendingEvaluations = normalized.filter(
+    assignment => assignment.derivedStatus === 'Submitted'
   ).length;
-  const overdueEvaluations = assignments.filter(
-    assignment => assignment.overallStatus === 'Overdue'
+  const overdueEvaluations = normalized.filter(
+    assignment => assignment.derivedStatus === 'Overdue'
   ).length;
 
   const completionRate = totalEvaluations > 0 ? (completedEvaluations / totalEvaluations) * 100 : 0;
 
-  const recentEvaluations = assignments
-    .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
+  const recentEvaluations = normalized
+    .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
     .slice(0, 5);
 
   const getStudentName = (userId: string) => {
@@ -107,6 +141,72 @@ export default function CalificadorDashboard() {
   const getFacultyName = (facultyId: string) => {
     // Aquí podrías implementar la lógica para obtener el nombre de la facultad
     return facultyId || 'Facultad no especificada';
+  };
+
+  // Reportes para Calificador
+  const generatePDFReport = async () => {
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Reporte de Calificador', 40, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${format(new Date(), 'dd-MMM-yyyy', { locale: es })}`, 40, 60);
+
+    // Resumen
+    // @ts-ignore
+    doc.autoTable({
+      startY: 90,
+      styles: { fontSize: 10 },
+      head: [['Total', 'Completadas', 'Pendientes', 'Vencidas']],
+      body: [[totalEvaluations, completedEvaluations, pendingEvaluations, overdueEvaluations]]
+    });
+
+    // Evaluaciones recientes
+    doc.text('Evaluaciones Recientes', 40, (doc as any).lastAutoTable.finalY + 30);
+    // @ts-ignore
+    doc.autoTable({
+      startY: (doc as any).lastAutoTable.finalY + 40,
+      styles: { fontSize: 9 },
+      head: [['ID', 'Responsable', 'Estado', 'Asignada']],
+      body: normalized.slice(0, 50).map(a => [
+        a.id || '-',
+        getStudentName(a.userId),
+        statusTranslations[a.derivedStatus || 'Pending'],
+        a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+      ])
+    });
+
+    doc.save(`reporte-calificador-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const generateExcelReport = async () => {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    const resumen = [
+      ['Reporte de Calificador'],
+      ['Fecha', format(new Date(), 'dd-MMM-yyyy', { locale: es })],
+      [],
+      ['Total', totalEvaluations],
+      ['Completadas', completedEvaluations],
+      ['Pendientes', pendingEvaluations],
+      ['Vencidas', overdueEvaluations],
+    ];
+    const resumenSheet = XLSX.utils.aoa_to_sheet(resumen);
+    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen');
+
+    const header = ['ID', 'Responsable', 'Estado', 'Asignada'];
+    const rows = normalized.map(a => [
+      a.id || '-',
+      getStudentName(a.userId),
+      statusTranslations[a.derivedStatus || 'Pending'],
+      a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+    ]);
+    const detalleSheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    XLSX.utils.book_append_sheet(wb, detalleSheet, 'Detalle');
+    XLSX.writeFile(wb, `reporte-calificador-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleViewDetails = (assignmentId: string) => {
@@ -123,6 +223,16 @@ export default function CalificadorDashboard() {
           <p className="text-muted-foreground">
             Bienvenido, {user?.name}. Aquí puedes gestionar tus evaluaciones.
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={async () => await generatePDFReport()} variant="outline" size="sm">
+            <FileDown className="h-4 w-4 mr-2" />
+            Reporte PDF
+          </Button>
+          <Button onClick={async () => await generateExcelReport()} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Reporte Excel
+          </Button>
         </div>
       </div>
 
@@ -230,7 +340,8 @@ export default function CalificadorDashboard() {
               ) : (
                 <div className="space-y-3">
                                      {assignments
-                     .filter(assignment => assignment.overallStatus === 'Submitted')
+                    .filter(assignment => assignment.overallStatus === 'Submitted')
+                    // .filter(assignment => assignment.derivedStatus === 'Submitted')
                      .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -288,6 +399,7 @@ export default function CalificadorDashboard() {
                 <div className="space-y-3">
                   {assignments
                     .filter(assignment => assignment.overallStatus === 'Overdue')
+                    // .filter(assignment => assignment.derivedStatus === 'Overdue')
                     .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -300,7 +412,7 @@ export default function CalificadorDashboard() {
                               {getStudentName(assignment.userId)}
                             </p>
                             <p className="text-sm text-red-600">
-                              Vencida el {assignment.dueDate?.toLocaleDateString()}
+                              Vencida el {assignment.dueDate ? format(assignment.dueDate, 'dd-MMM-yyyy', { locale: es }) : '-'}
                             </p>
                           </div>
                         </div>
@@ -336,7 +448,8 @@ export default function CalificadorDashboard() {
               ) : (
                 <div className="space-y-3">
                                      {assignments
-                     .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
+                    .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
+                    // .filter(assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected')
                      .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -401,15 +514,15 @@ export default function CalificadorDashboard() {
                             Asignación #{assignment.id} • {getFacultyName(assignment.userId)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Asignada el {new Date(assignment.assignedDate).toLocaleDateString()}
+                            Asignada el {assignment.assignedDateObj ? format(assignment.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge 
-                          className={statusColors[assignment.overallStatus || 'Pending']}
+                          className={statusColors[assignment.derivedStatus || 'Pending']}
                         >
-                          {statusTranslations[assignment.overallStatus || 'Pending']}
+                          {statusTranslations[assignment.derivedStatus || 'Pending']}
                         </Badge>
                         <Button 
                           variant="outline" 

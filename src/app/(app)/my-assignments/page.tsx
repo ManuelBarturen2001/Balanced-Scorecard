@@ -58,7 +58,7 @@ export default function MyAssignmentsPage() {
       if (!authLoading && user) {
         try {
           if (isAsignador) {
-            // Para asignadores: obtener todas las asignaciones
+            // Para asignadores: obtener solo las asignaciones creadas por el asignador actual
             const [allAssignments, allUsersData, facultiesData, schoolsData, perspectivesData, officesData] = await Promise.all([
               getAllAssignedIndicators(),
               getAllUsers(),
@@ -67,7 +67,8 @@ export default function MyAssignmentsPage() {
               getAllPerspectives(),
               getAllOffices()
             ]);
-            setUserAssignments(allAssignments);
+            const ownAssignments = (allAssignments as any[]).filter(a => a.assignerId === user.id);
+            setUserAssignments(ownAssignments as any);
             setAllUsers(allUsersData);
             setFaculties(facultiesData);
             setProfessionalSchools(schoolsData);

@@ -525,128 +525,634 @@ export default function AdminDashboard() {
   const generatePDFReport = async () => {
     const { jsPDF } = await import('jspdf');
     await import('jspdf-autotable');
-    const reportData = {
-      title: 'Reporte de Administrador',
-      date: format(new Date(), 'dd-MMM-yyyy', { locale: es }),
-      stats: {
-        total: totalAssignments,
-        completed: completedAssignments,
-        active: activeAssignments,
-        pending: pendingAssignments,
-        overdue: overdueAssignments,
-        completionRate: completionRate.toFixed(1)
-      },
-      facultyStats: statsByFaculty.filter(stat => stat.total > 0),
-      recentAssignments: filteredAssignments
-        .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
-        .slice(0, 10)
-    };
+    
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.width;
+    let currentY = 40;
+
+    // Función auxiliar para agregar nueva página si es necesario
+    const checkPageBreak = (requiredSpace: number) => {
+      if (currentY + requiredSpace > doc.internal.pageSize.height - 40) {
+        doc.addPage();
+        currentY = 40;
+        return true;
+      }
+      return false;
+    };
+
+    // ===== ENCABEZADO CON LOGO =====
+    try {
+      // Agregar logo (usar la imagen de public/Img/UNMSM.png)
+      const logoUrl = '/Img/unimsm.png';
+      const img = new Image();
+      img.src = logoUrl;
+      
+      // Cargar imagen y agregarla
+      await new Promise((resolve) => {
+        img.onload = () => {
+          doc.addImage(img, 'PNG', 40, currentY, 60, 60);
+          resolve(true);
+        };
+        img.onerror = () => {
+          console.warn('No se pudo cargar el logo');
+          resolve(false);
+        };
+      });
+    } catch (error) {
+      console.warn('Error al cargar logo:', error);
+    }
+
+    // Título Universidad
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('Reporte de Administrador', 40, 40);
+    doc.setTextColor(0, 51, 102); // Azul oscuro
+    doc.text('UNIVERSIDAD NACIONAL MAYOR DE SAN MARCOS', 120, currentY + 15, { maxWidth: pageWidth - 140 });
+    
+    doc.setFontSize(12);
+    doc.text('(Universidad del Perú, DECANA DE AMÉRICA)', 120, currentY + 35);
+    
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text('REPORTE DE ADMINISTRADOR', 120, currentY + 55);
+    
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Fecha: ${reportData.date}`, 40, 60);
+    doc.text(`Fecha de generación: ${format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es })}`, 120, currentY + 70);
+    doc.text(`Vista: ${viewMode === 'compact' ? 'Compacta' : 'Detallada'}`, 120, currentY + 85);
 
-    // Resumen
-    doc.setFontSize(12);
-    doc.text('Resumen General', 40, 90);
-    // @ts-ignore - autoTable está agregado por el import dinámico
-    doc.autoTable({
-      startY: 100,
-      styles: { fontSize: 10 },
-      head: [['Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas', 'Tasa de Completación']],
-      body: [[
-        reportData.stats.total,
-        reportData.stats.completed,
-        reportData.stats.active,
-        reportData.stats.pending,
-        reportData.stats.overdue,
-        `${reportData.stats.completionRate}%`
-      ]]
-    });
+    currentY += 110;
 
-    // Estadísticas por Facultad
-    doc.text('Estadísticas por Facultad', 40, (doc as any).lastAutoTable.finalY + 30);
+    // Línea separadora
+    doc.setDrawColor(0, 51, 102);
+    doc.setLineWidth(2);
+    doc.line(40, currentY, pageWidth - 40, currentY);
+    currentY += 20;
+
+    // ===== RESUMEN EJECUTIVO =====
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('1. RESUMEN EJECUTIVO', 40, currentY);
+    currentY += 20;
+
     // @ts-ignore
     doc.autoTable({
-      startY: (doc as any).lastAutoTable.finalY + 40,
-      styles: { fontSize: 10 },
-      head: [['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas']],
-      body: reportData.facultyStats.map(stat => [
-        stat.faculty.name,
+      startY: currentY,
+      head: [['Métrica', 'Valor']],
+      body: [
+        ['Total de Asignaciones', totalAssignments.toString()],
+        ['Asignaciones Completadas', `${completedAssignments} (${completionRate.toFixed(1)}%)`],
+        ...(viewMode === 'detailed' ? [['Asignaciones Activas', activeAssignments.toString()]] : []),
+        ['Asignaciones Pendientes', pendingAssignments.toString()],
+        ['Asignaciones Vencidas', overdueAssignments.toString()],
+        ['Tasa de Completación', `${completionRate.toFixed(1)}%`],
+      ],
+      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 11, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 248, 255] },
+      styles: { fontSize: 10, cellPadding: 8 },
+      margin: { left: 40, right: 40 }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 30;
+    checkPageBreak(100);
+
+    // ===== ESTADÍSTICAS POR FACULTAD =====
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('2. ESTADÍSTICAS POR FACULTAD', 40, currentY);
+    currentY += 20;
+
+    const facultyData = statsByFaculty
+      .filter(stat => stat.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    // @ts-ignore
+    doc.autoTable({
+      startY: currentY,
+      head: [['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas', '% Completado']],
+      body: facultyData.map(stat => [
+        stat.faculty.shortName,
         stat.total,
         stat.completed,
         stat.active,
         stat.pending,
-        stat.overdue
-      ])
+        stat.overdue,
+        `${stat.total > 0 ? ((stat.completed / stat.total) * 100).toFixed(1) : 0}%`
+      ]),
+      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 248, 255] },
+      styles: { fontSize: 9, cellPadding: 6 },
+      margin: { left: 40, right: 40 },
+      columnStyles: {
+        0: { cellWidth: 180 },
+        1: { halign: 'center', cellWidth: 45 },
+        2: { halign: 'center', cellWidth: 60 },
+        3: { halign: 'center', cellWidth: 50 },
+        4: { halign: 'center', cellWidth: 60 },
+        5: { halign: 'center', cellWidth: 55 },
+        6: { halign: 'center', cellWidth: 65 }
+      }
     });
 
-    // Asignaciones recientes
-    doc.text('Asignaciones Recientes', 40, (doc as any).lastAutoTable.finalY + 30);
+    currentY = (doc as any).lastAutoTable.finalY + 30;
+    checkPageBreak(100);
+
+    // ===== ESTADÍSTICAS POR OFICINA =====
+    const officeData = statsByOffice
+      .filter(stat => stat.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10); // Top 10 oficinas
+
+    if (officeData.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(0, 51, 102);
+      doc.text('3. TOP 10 OFICINAS CON MÁS ASIGNACIONES', 40, currentY);
+      currentY += 20;
+
+      // @ts-ignore
+      doc.autoTable({
+        startY: currentY,
+        head: [['Oficina', 'Total', 'Completadas', 'Pendientes', 'Vencidas', '% Completado']],
+        body: officeData.map(stat => [
+          stat.office.name.length > 50 ? stat.office.name.substring(0, 47) + '...' : stat.office.name,
+          stat.total,
+          stat.completed,
+          stat.pending,
+          stat.overdue,
+          `${stat.total > 0 ? ((stat.completed / stat.total) * 100).toFixed(1) : 0}%`
+        ]),
+        headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [240, 248, 255] },
+        styles: { fontSize: 9, cellPadding: 6 },
+        margin: { left: 40, right: 40 },
+        columnStyles: {
+          0: { cellWidth: 250 },
+          1: { halign: 'center', cellWidth: 50 },
+          2: { halign: 'center', cellWidth: 70 },
+          3: { halign: 'center', cellWidth: 70 },
+          4: { halign: 'center', cellWidth: 60 },
+          5: { halign: 'center', cellWidth: 75 }
+        }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 30;
+    }
+
+    // Nueva página para usuarios
+    doc.addPage();
+    currentY = 40;
+
+    // ===== ESTADÍSTICAS DE USUARIOS =====
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('4. DISTRIBUCIÓN DE USUARIOS POR ROL', 40, currentY);
+    currentY += 20;
+
     // @ts-ignore
     doc.autoTable({
-      startY: (doc as any).lastAutoTable.finalY + 40,
-      styles: { fontSize: 9 },
-      head: [['ID', 'Estudiante', 'Facultad', 'Estado', 'Fecha Asignación']],
-      body: reportData.recentAssignments.map(a => [
-        a.id || '-',
-        getStudentName(a.userId),
-        getFacultyNameByUserId(a.userId),
-        statusTranslations[a.derivedStatus || 'Pending'],
-        a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
-      ])
+      startY: currentY,
+      head: [['Rol', 'Cantidad', 'Porcentaje']],
+      body: [
+        ['Administradores', usersByRole.admin, `${((usersByRole.admin / users.length) * 100).toFixed(1)}%`],
+        ['Asignadores', usersByRole.asignador, `${((usersByRole.asignador / users.length) * 100).toFixed(1)}%`],
+        ['Calificadores', usersByRole.calificador, `${((usersByRole.calificador / users.length) * 100).toFixed(1)}%`],
+        ['Responsables', usersByRole.responsable, `${((usersByRole.responsable / users.length) * 100).toFixed(1)}%`],
+        ['TOTAL', users.length, '100%']
+      ],
+      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 11, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 248, 255] },
+      styles: { fontSize: 10, cellPadding: 8 },
+      margin: { left: 40, right: 40 },
+      columnStyles: {
+        1: { halign: 'center' },
+        2: { halign: 'center' }
+      },
+      footStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' }
     });
 
-    doc.save(`reporte-admin-${new Date().toISOString().split('T')[0]}.pdf`);
+    currentY = (doc as any).lastAutoTable.finalY + 30;
+    checkPageBreak(100);
+
+    // ===== ASIGNACIONES CRÍTICAS (VENCIDAS) =====
+    const overdueList = normalizedAssignments
+      .filter(a => a.derivedStatus === 'Overdue')
+      .sort((a, b) => (a.dueDateObj?.getTime() || 0) - (b.dueDateObj?.getTime() || 0))
+      .slice(0, 15);
+
+    if (overdueList.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(204, 0, 0); // Rojo para alertas
+      doc.text('5. ⚠️ ASIGNACIONES VENCIDAS - ATENCIÓN URGENTE', 40, currentY);
+      currentY += 20;
+
+      // @ts-ignore
+      doc.autoTable({
+        startY: currentY,
+        head: [['Responsable', 'Facultad', 'Fecha Vencimiento', 'Días Vencidos']],
+        body: overdueList.map(a => {
+          const student = users.find(u => u.id === a.userId);
+          const faculty = faculties.find(f => f.id === student?.facultyId);
+          const daysOverdue = a.dueDateObj 
+            ? Math.floor((new Date().getTime() - a.dueDateObj.getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+          
+          return [
+            student?.name || 'Desconocido',
+            faculty?.shortName || 'N/A',
+            a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+            daysOverdue > 0 ? `${daysOverdue} días` : '-'
+          ];
+        }),
+        headStyles: { fillColor: [204, 0, 0], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [255, 240, 240] },
+        styles: { fontSize: 9, cellPadding: 6 },
+        margin: { left: 40, right: 40 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 30;
+    }
+
+    // ===== ASIGNACIONES RECIENTES =====
+    checkPageBreak(100);
+    
+    const recentList = normalizedAssignments
+      .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
+      .slice(0, 20);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('6. ASIGNACIONES RECIENTES', 40, currentY);
+    currentY += 20;
+
+    // @ts-ignore
+    doc.autoTable({
+      startY: currentY,
+      head: [['Responsable', 'Facultad', 'Oficina', 'Estado', 'Fecha']],
+      body: recentList.map(a => {
+        const student = users.find(u => u.id === a.userId);
+        const faculty = faculties.find(f => f.id === student?.facultyId);
+        const office = offices.find(o => o.id === student?.officeId);
+        
+        return [
+          student?.name || 'Desconocido',
+          faculty?.shortName || 'N/A',
+          office?.name.substring(0, 30) || 'N/A',
+          statusTranslations[a.derivedStatus || 'Pending'],
+          a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+        ];
+      }),
+      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 248, 255] },
+      styles: { fontSize: 9, cellPadding: 6 },
+      margin: { left: 40, right: 40 },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 80 },
+        2: { cellWidth: 150 },
+        3: { halign: 'center', cellWidth: 80 },
+        4: { halign: 'center', cellWidth: 85 }
+      }
+    });
+
+    // ===== PIE DE PÁGINA EN TODAS LAS PÁGINAS =====
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Página ${i} de ${totalPages} - Generado el ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}`,
+        pageWidth / 2,
+        doc.internal.pageSize.height - 20,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`Reporte_UNMSM_Administrador_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
   };
 
   const generateExcelReport = async () => {
     const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
-    // Hoja 1: Resumen
+    // ===== HOJA 1: RESUMEN EJECUTIVO =====
     const resumenData = [
-      ['Reporte de Administrador'],
-      ['Fecha', format(new Date(), 'dd-MMM-yyyy', { locale: es })],
-      [],
-      ['Estadísticas Generales'],
-      ['Total Asignaciones', totalAssignments],
-      ['Completadas', completedAssignments],
-      ['Activas', activeAssignments],
-      ['Pendientes', pendingAssignments],
-      ['Vencidas', overdueAssignments],
-      ['Tasa de Completación', `${completionRate.toFixed(1)}%`],
+      ['UNIVERSIDAD NACIONAL MAYOR DE SAN MARCOS'],
+      ['REPORTE DE ADMINISTRADOR - BALANCED SCORECARD'],
+      [''],
+      ['Fecha de generación:', format(new Date(), "dd 'de' MMMM 'de' yyyy HH:mm", { locale: es })],
+      ['Vista:', viewMode === 'compact' ? 'Compacta' : 'Detallada'],
+      [''],
+      ['RESUMEN EJECUTIVO'],
+      [''],
+      ['Métrica', 'Valor', 'Porcentaje'],
+      ['Total de Asignaciones', totalAssignments, '100%'],
+      ['Asignaciones Completadas', completedAssignments, `${completionRate.toFixed(1)}%`],
+      ...(viewMode === 'detailed' ? [['Asignaciones Activas', activeAssignments, `${((activeAssignments / totalAssignments) * 100).toFixed(1)}%`]] : []),
+      ['Asignaciones Pendientes', pendingAssignments, `${((pendingAssignments / totalAssignments) * 100).toFixed(1)}%`],
+      ['Asignaciones Vencidas', overdueAssignments, `${((overdueAssignments / totalAssignments) * 100).toFixed(1)}%`],
+      [''],
+      ['DISTRIBUCIÓN DE USUARIOS'],
+      [''],
+      ['Rol', 'Cantidad', 'Porcentaje'],
+      ['Administradores', usersByRole.admin, `${((usersByRole.admin / users.length) * 100).toFixed(1)}%`],
+      ['Asignadores', usersByRole.asignador, `${((usersByRole.asignador / users.length) * 100).toFixed(1)}%`],
+      ['Calificadores', usersByRole.calificador, `${((usersByRole.calificador / users.length) * 100).toFixed(1)}%`],
+      ['Responsables', usersByRole.responsable, `${((usersByRole.responsable / users.length) * 100).toFixed(1)}%`],
+      ['TOTAL', users.length, '100%'],
     ];
     const resumenSheet = XLSX.utils.aoa_to_sheet(resumenData);
-    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen');
+    
+    // Aplicar estilos al resumen
+    if (!resumenSheet['!cols']) resumenSheet['!cols'] = [];
+    resumenSheet['!cols'][0] = { wch: 35 };
+    resumenSheet['!cols'][1] = { wch: 20 };
+    resumenSheet['!cols'][2] = { wch: 15 };
+    
+    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen Ejecutivo');
 
-    // Hoja 2: Por Facultad
-    const facultadHeader = ['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas'];
-    const facultadRows = statsByFaculty
-      .filter(stat => stat.total > 0)
-      .map(stat => [stat.faculty.name, stat.total, stat.completed, stat.active, stat.pending, stat.overdue]);
-    const facultadSheet = XLSX.utils.aoa_to_sheet([facultadHeader, ...facultadRows]);
+    // ===== HOJA 2: ESTADÍSTICAS POR FACULTAD =====
+    const facultadData = [
+      ['ESTADÍSTICAS POR FACULTAD'],
+      [''],
+      ['Facultad', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas', '% Completado', '% Vencido'],
+      ...statsByFaculty
+        .filter(stat => stat.total > 0)
+        .sort((a, b) => b.total - a.total)
+        .map(stat => [
+          stat.faculty.name,
+          stat.total,
+          stat.completed,
+          stat.active,
+          stat.pending,
+          stat.overdue,
+          stat.total > 0 ? `${((stat.completed / stat.total) * 100).toFixed(1)}%` : '0%',
+          stat.total > 0 ? `${((stat.overdue / stat.total) * 100).toFixed(1)}%` : '0%'
+        ]),
+      [''],
+      ['TOTAL', 
+        statsByFaculty.reduce((sum, stat) => sum + stat.total, 0),
+        statsByFaculty.reduce((sum, stat) => sum + stat.completed, 0),
+        statsByFaculty.reduce((sum, stat) => sum + stat.active, 0),
+        statsByFaculty.reduce((sum, stat) => sum + stat.pending, 0),
+        statsByFaculty.reduce((sum, stat) => sum + stat.overdue, 0),
+        '',
+        ''
+      ]
+    ];
+    const facultadSheet = XLSX.utils.aoa_to_sheet(facultadData);
+    
+    // Configurar anchos de columna
+    if (!facultadSheet['!cols']) facultadSheet['!cols'] = [];
+    facultadSheet['!cols'][0] = { wch: 50 };
+    facultadSheet['!cols'][1] = { wch: 12 };
+    facultadSheet['!cols'][2] = { wch: 15 };
+    facultadSheet['!cols'][3] = { wch: 12 };
+    facultadSheet['!cols'][4] = { wch: 15 };
+    facultadSheet['!cols'][5] = { wch: 12 };
+    facultadSheet['!cols'][6] = { wch: 15 };
+    facultadSheet['!cols'][7] = { wch: 13 };
+    
+    // Agregar filtros
+    facultadSheet['!autofilter'] = { ref: `A3:H${facultadData.length - 2}` };
+    
     XLSX.utils.book_append_sheet(wb, facultadSheet, 'Por Facultad');
 
-    // Hoja 3: Recientes
-    const recientesHeader = ['ID', 'Estudiante', 'Facultad', 'Estado', 'Fecha Asignación'];
-    const recientesRows = filteredAssignments
+    // ===== HOJA 3: ESTADÍSTICAS POR OFICINA =====
+    const officeStatsFiltered = statsByOffice.filter(stat => stat.total > 0).sort((a, b) => b.total - a.total);
+    const oficinaData = [
+      ['ESTADÍSTICAS POR OFICINA'],
+      [''],
+      ['Oficina', 'Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas', '% Completado', '% Vencido'],
+      ...officeStatsFiltered.map(stat => [
+        stat.office.name,
+        stat.total,
+        stat.completed,
+        stat.active,
+        stat.pending,
+        stat.overdue,
+        stat.total > 0 ? `${((stat.completed / stat.total) * 100).toFixed(1)}%` : '0%',
+        stat.total > 0 ? `${((stat.overdue / stat.total) * 100).toFixed(1)}%` : '0%'
+      ]),
+      [''],
+      ['TOTAL',
+        officeStatsFiltered.reduce((sum, stat) => sum + stat.total, 0),
+        officeStatsFiltered.reduce((sum, stat) => sum + stat.completed, 0),
+        officeStatsFiltered.reduce((sum, stat) => sum + stat.active, 0),
+        officeStatsFiltered.reduce((sum, stat) => sum + stat.pending, 0),
+        officeStatsFiltered.reduce((sum, stat) => sum + stat.overdue, 0),
+        '',
+        ''
+      ]
+    ];
+    const oficinaSheet = XLSX.utils.aoa_to_sheet(oficinaData);
+    
+    if (!oficinaSheet['!cols']) oficinaSheet['!cols'] = [];
+    oficinaSheet['!cols'][0] = { wch: 60 };
+    oficinaSheet['!cols'][1] = { wch: 12 };
+    oficinaSheet['!cols'][2] = { wch: 15 };
+    oficinaSheet['!cols'][3] = { wch: 12 };
+    oficinaSheet['!cols'][4] = { wch: 15 };
+    oficinaSheet['!cols'][5] = { wch: 12 };
+    oficinaSheet['!cols'][6] = { wch: 15 };
+    oficinaSheet['!cols'][7] = { wch: 13 };
+    
+    oficinaSheet['!autofilter'] = { ref: `A3:H${oficinaData.length - 2}` };
+    
+    XLSX.utils.book_append_sheet(wb, oficinaSheet, 'Por Oficina');
+
+    // ===== HOJA 4: ASIGNACIONES VENCIDAS (CRÍTICAS) =====
+    const overdueList = normalizedAssignments
+      .filter(a => a.derivedStatus === 'Overdue')
+      .sort((a, b) => (a.dueDateObj?.getTime() || 0) - (b.dueDateObj?.getTime() || 0));
+
+    const vencidasData = [
+      ['⚠️ ASIGNACIONES VENCIDAS - ATENCIÓN URGENTE'],
+      [''],
+      ['Responsable', 'Email', 'Facultad', 'Oficina', 'Fecha Vencimiento', 'Días Vencidos', 'Estado'],
+      ...overdueList.map(a => {
+        const student = users.find(u => u.id === a.userId);
+        const faculty = faculties.find(f => f.id === student?.facultyId);
+        const office = offices.find(o => o.id === student?.officeId);
+        const daysOverdue = a.dueDateObj 
+          ? Math.floor((new Date().getTime() - a.dueDateObj.getTime()) / (1000 * 60 * 60 * 24))
+          : 0;
+        
+        return [
+          student?.name || 'Desconocido',
+          student?.email || 'N/A',
+          faculty?.shortName || 'N/A',
+          office?.name || 'N/A',
+          a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+          daysOverdue > 0 ? daysOverdue : 0,
+          statusTranslations[a.derivedStatus || 'Pending']
+        ];
+      })
+    ];
+    
+    const vencidasSheet = XLSX.utils.aoa_to_sheet(vencidasData);
+    
+    if (!vencidasSheet['!cols']) vencidasSheet['!cols'] = [];
+    vencidasSheet['!cols'][0] = { wch: 30 };
+    vencidasSheet['!cols'][1] = { wch: 25 };
+    vencidasSheet['!cols'][2] = { wch: 20 };
+    vencidasSheet['!cols'][3] = { wch: 40 };
+    vencidasSheet['!cols'][4] = { wch: 18 };
+    vencidasSheet['!cols'][5] = { wch: 15 };
+    vencidasSheet['!cols'][6] = { wch: 15 };
+    
+    if (overdueList.length > 0) {
+      vencidasSheet['!autofilter'] = { ref: `A3:G${vencidasData.length}` };
+    }
+    
+    XLSX.utils.book_append_sheet(wb, vencidasSheet, 'Vencidas');
+
+    // ===== HOJA 5: ASIGNACIONES RECIENTES =====
+    const recentList = normalizedAssignments
       .sort((a, b) => (b.assignedDateObj?.getTime() || 0) - (a.assignedDateObj?.getTime() || 0))
-      .slice(0, 50)
-      .map(a => [
-        a.id || '-',
-        getStudentName(a.userId),
-        getFacultyNameByUserId(a.userId),
-        statusTranslations[a.derivedStatus || 'Pending'],
-        a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
-      ]);
-    const recientesSheet = XLSX.utils.aoa_to_sheet([recientesHeader, ...recientesRows]);
+      .slice(0, 100);
+
+    const recientesData = [
+      ['ASIGNACIONES RECIENTES (últimas 100)'],
+      [''],
+      ['Responsable', 'Email', 'Facultad', 'Escuela Profesional', 'Oficina', 'Estado', 'Fecha Asignación', 'Fecha Vencimiento'],
+      ...recentList.map(a => {
+        const student = users.find(u => u.id === a.userId);
+        const faculty = faculties.find(f => f.id === student?.facultyId);
+        const school = professionalSchools.find(s => s.id === student?.professionalSchoolId);
+        const office = offices.find(o => o.id === student?.officeId);
+        
+        return [
+          student?.name || 'Desconocido',
+          student?.email || 'N/A',
+          faculty?.shortName || 'N/A',
+          school?.name || 'N/A',
+          office?.name || 'N/A',
+          statusTranslations[a.derivedStatus || 'Pending'],
+          a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+          a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
+        ];
+      })
+    ];
+    
+    const recientesSheet = XLSX.utils.aoa_to_sheet(recientesData);
+    
+    if (!recientesSheet['!cols']) recientesSheet['!cols'] = [];
+    recientesSheet['!cols'][0] = { wch: 30 };
+    recientesSheet['!cols'][1] = { wch: 25 };
+    recientesSheet['!cols'][2] = { wch: 20 };
+    recientesSheet['!cols'][3] = { wch: 35 };
+    recientesSheet['!cols'][4] = { wch: 40 };
+    recientesSheet['!cols'][5] = { wch: 15 };
+    recientesSheet['!cols'][6] = { wch: 18 };
+    recientesSheet['!cols'][7] = { wch: 18 };
+    
+    recientesSheet['!autofilter'] = { ref: `A3:H${recientesData.length}` };
+    
     XLSX.utils.book_append_sheet(wb, recientesSheet, 'Recientes');
 
-    XLSX.writeFile(wb, `reporte-admin-${new Date().toISOString().split('T')[0]}.xlsx`);
+    // ===== HOJA 6: TODAS LAS ASIGNACIONES (COMPLETO) =====
+    const todasData = [
+      ['BASE DE DATOS COMPLETA - TODAS LAS ASIGNACIONES'],
+      [''],
+      ['#', 'Responsable', 'Email', 'Facultad', 'Escuela', 'Oficina', 'Jefe Facultad', 'Jefe Oficina', 'Estado', 'Fecha Asignación', 'Fecha Vencimiento', 'Calificadores'],
+      ...normalizedAssignments.map((a, index) => {
+        const student = users.find(u => u.id === a.userId);
+        const faculty = faculties.find(f => f.id === student?.facultyId);
+        const school = professionalSchools.find(s => s.id === student?.professionalSchoolId);
+        const office = offices.find(o => o.id === student?.officeId);
+        const juryNames = (a.jury || []).map(jId => {
+          const juryMember = users.find(u => u.id === jId);
+          return juryMember?.name || 'Desconocido';
+        }).join(', ');
+        
+        return [
+          index + 1,
+          student?.name || 'Desconocido',
+          student?.email || 'N/A',
+          faculty?.name || 'N/A',
+          school?.name || 'N/A',
+          office?.name || 'N/A',
+          student?.facultyBossName || student?.bossName || 'N/A',
+          student?.officeBossName || 'N/A',
+          statusTranslations[a.derivedStatus || 'Pending'],
+          a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+          a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
+          juryNames || 'Sin asignar'
+        ];
+      })
+    ];
+    
+    const todasSheet = XLSX.utils.aoa_to_sheet(todasData);
+    
+    if (!todasSheet['!cols']) todasSheet['!cols'] = [];
+    todasSheet['!cols'][0] = { wch: 5 };
+    todasSheet['!cols'][1] = { wch: 30 };
+    todasSheet['!cols'][2] = { wch: 25 };
+    todasSheet['!cols'][3] = { wch: 25 };
+    todasSheet['!cols'][4] = { wch: 35 };
+    todasSheet['!cols'][5] = { wch: 40 };
+    todasSheet['!cols'][6] = { wch: 25 };
+    todasSheet['!cols'][7] = { wch: 25 };
+    todasSheet['!cols'][8] = { wch: 15 };
+    todasSheet['!cols'][9] = { wch: 18 };
+    todasSheet['!cols'][10] = { wch: 18 };
+    todasSheet['!cols'][11] = { wch: 30 };
+    
+    todasSheet['!autofilter'] = { ref: `A3:L${todasData.length}` };
+    
+    XLSX.utils.book_append_sheet(wb, todasSheet, 'Base Datos Completa');
+
+    // ===== HOJA 7: LISTA DE USUARIOS =====
+    const usuariosData = [
+      ['LISTA COMPLETA DE USUARIOS DEL SISTEMA'],
+      [''],
+      ['#', 'Nombre', 'Email', 'Rol', 'Tipo Rol', 'Facultad', 'Escuela Profesional', 'Oficina', 'Jefe Facultad', 'Jefe Oficina'],
+      ...users.map((u, index) => {
+        const faculty = faculties.find(f => f.id === u.facultyId);
+        const school = professionalSchools.find(s => s.id === u.professionalSchoolId);
+        const office = offices.find(o => o.id === u.officeId);
+        
+        return [
+          index + 1,
+          u.name,
+          u.email,
+          u.role,
+          u.roleType || 'N/A',
+          faculty?.name || 'N/A',
+          school?.name || 'N/A',
+          office?.name || 'N/A',
+          u.facultyBossName || u.bossName || 'N/A',
+          u.officeBossName || 'N/A'
+        ];
+      })
+    ];
+    
+    const usuariosSheet = XLSX.utils.aoa_to_sheet(usuariosData);
+    
+    if (!usuariosSheet['!cols']) usuariosSheet['!cols'] = [];
+    usuariosSheet['!cols'][0] = { wch: 5 };
+    usuariosSheet['!cols'][1] = { wch: 30 };
+    usuariosSheet['!cols'][2] = { wch: 30 };
+    usuariosSheet['!cols'][3] = { wch: 15 };
+    usuariosSheet['!cols'][4] = { wch: 12 };
+    usuariosSheet['!cols'][5] = { wch: 30 };
+    usuariosSheet['!cols'][6] = { wch: 35 };
+    usuariosSheet['!cols'][7] = { wch: 40 };
+    usuariosSheet['!cols'][8] = { wch: 25 };
+    usuariosSheet['!cols'][9] = { wch: 25 };
+    
+    usuariosSheet['!autofilter'] = { ref: `A3:J${usuariosData.length}` };
+    
+    XLSX.utils.book_append_sheet(wb, usuariosSheet, 'Usuarios');
+
+    // Guardar archivo con nombre descriptivo
+    XLSX.writeFile(wb, `Reporte_UNMSM_Administrador_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`);
   };
 
   return (

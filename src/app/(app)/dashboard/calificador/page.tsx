@@ -339,10 +339,9 @@ export default function CalificadorDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                                     {assignments
-                    .filter(assignment => assignment.overallStatus === 'Submitted')
-                    // .filter(assignment => assignment.derivedStatus === 'Submitted')
-                     .map((assignment) => (
+                  {normalized
+                    .filter(assignment => assignment.derivedStatus === 'Submitted')
+                    .map((assignment) => (
                       <div
                         key={assignment.id}
                         className="flex items-center justify-between p-3 border rounded-lg"
@@ -357,7 +356,7 @@ export default function CalificadorDashboard() {
                               Asignación #{assignment.id} • {getFacultyName(assignment.userId)}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Presentado el {new Date().toLocaleDateString()}
+                              Presentado el {assignment.assignedDateObj ? format(assignment.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
                             </p>
                           </div>
                         </div>
@@ -397,9 +396,8 @@ export default function CalificadorDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {assignments
-                    .filter(assignment => assignment.overallStatus === 'Overdue')
-                    // .filter(assignment => assignment.derivedStatus === 'Overdue')
+                  {normalized
+                    .filter(assignment => assignment.derivedStatus === 'Overdue')
                     .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -412,7 +410,7 @@ export default function CalificadorDashboard() {
                               {getStudentName(assignment.userId)}
                             </p>
                             <p className="text-sm text-red-600">
-                              Vencida el {assignment.dueDate ? format(assignment.dueDate, 'dd-MMM-yyyy', { locale: es }) : '-'}
+                              Vencida el {assignment.dueDateObj ? format(assignment.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
                             </p>
                           </div>
                         </div>
@@ -447,10 +445,9 @@ export default function CalificadorDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                                     {assignments
-                    .filter(assignment => assignment.overallStatus === 'Approved' || assignment.overallStatus === 'Rejected')
-                    // .filter(assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected')
-                     .map((assignment) => (
+                  {normalized
+                    .filter(assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected')
+                    .map((assignment) => (
                       <div
                         key={assignment.id}
                         className="flex items-center justify-between p-3 border border-green-200 rounded-lg bg-green-50"
@@ -468,12 +465,12 @@ export default function CalificadorDashboard() {
                         </div>
                         <Badge 
                           className={
-                            assignment.overallStatus === 'Approved' 
+                            assignment.derivedStatus === 'Approved' 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-red-100 text-red-800'
                           }
                         >
-                          {assignment.overallStatus === 'Approved' ? 'Aprobada' : 'Rechazada'}
+                          {assignment.derivedStatus === 'Approved' ? 'Aprobada' : 'Rechazada'}
                         </Badge>
                       </div>
                     ))}

@@ -274,8 +274,8 @@ export default function UsuarioDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {assignments
-                    .filter(assignment => assignment.overallStatus === 'Overdue')
+                  {normalized
+                    .filter(assignment => assignment.derivedStatus === 'Overdue')
                     .map((assignment) => (
                       <div
                         key={assignment.id}
@@ -286,7 +286,7 @@ export default function UsuarioDashboard() {
                           <div>
                             <p className="font-medium">Asignación #{assignment.id}</p>
                             <p className="text-sm text-red-600">
-                              Vencida el {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : '-'}
+                              Vencida el {assignment.dueDateObj ? format(assignment.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
                             </p>
                           </div>
                         </div>
@@ -317,8 +317,8 @@ export default function UsuarioDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {assignments
-                    .filter(assignment => assignment.overallStatus === 'Approved')
+                  {normalized
+                    .filter(assignment => assignment.derivedStatus === 'Approved')
                     .map((assignment) => (
                       <div
                         key={assignment.id}

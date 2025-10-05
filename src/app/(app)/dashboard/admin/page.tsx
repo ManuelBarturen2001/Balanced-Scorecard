@@ -12,7 +12,6 @@ import {
   Clock, 
   AlertCircle, 
   TrendingUp,
-  Calendar,
   Award,
   BarChart3,
   Users,

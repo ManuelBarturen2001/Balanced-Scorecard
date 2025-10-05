@@ -54,6 +54,7 @@ export interface Notification {
   createdAt: Date;
   actionUrl?: string;
   priority: 'low' | 'medium' | 'high';
+  senderName?: string; // Nombre del remitente (para notificaciones manuales)
 }
 
 export interface Faculty {

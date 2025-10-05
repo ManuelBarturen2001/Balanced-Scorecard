@@ -8,10 +8,14 @@ import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
+import { useNotificationChecker } from '@/hooks/useNotificationChecker';
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  
+  // Activar sistema de notificaciones automáticas
+  useNotificationChecker();
 
   useEffect(() => {
     if (!loading && !user) {

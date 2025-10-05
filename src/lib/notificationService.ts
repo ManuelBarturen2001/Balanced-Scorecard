@@ -24,7 +24,7 @@ export interface CreateNotificationParams {
 
 // Función para crear una nueva notificación
 export const createNotification = (params: CreateNotificationParams): Notification => {
-  return {
+  const notification: Notification = {
     id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     title: params.title,
     message: params.message,
@@ -32,9 +32,16 @@ export const createNotification = (params: CreateNotificationParams): Notificati
     priority: params.priority,
     read: false,
     createdAt: new Date(),
-    actionUrl: params.actionUrl,
   };
+
+  // Solo agregar actionUrl si existe y no está vacío
+  if (params.actionUrl && params.actionUrl.trim() !== "") {
+    notification.actionUrl = params.actionUrl.trim();
+  }
+
+  return notification;
 };
+
 
 // Función para obtener el tipo de notificación basado en el tipo del sistema
 const getNotificationType = (systemType: NotificationType): 'info' | 'warning' | 'error' | 'success' => {
@@ -232,4 +239,198 @@ export const getUnreadNotifications = (notifications: Notification[]): Notificat
 // Función para obtener notificaciones de alta prioridad
 export const getHighPriorityNotifications = (notifications: Notification[]): Notification[] => {
   return notifications.filter(notification => notification.priority === 'high');
+};
+
+// ============= NOTIFICACIONES AVANZADAS DEL SISTEMA =============
+
+// Notificar al responsable cuando se crea una asignación
+export const notifyResponsableNewAssignment = async (
+  userId: string,
+  assignmentId: string,
+  indicatorName: string
+): Promise<void> => {
+  // Acortar el nombre del indicador si es muy largo
+  const shortName = indicatorName.length > 60 
+    ? indicatorName.substring(0, 60) + '...' 
+    : indicatorName;
+  
+  const notification = createNotification({
+    title: '📋 Nueva Asignación Recibida',
+    message: `Indicador: "${shortName}". Revisa los detalles en tus asignaciones.`,
+    type: 'assignment_created',
+    priority: 'high',
+    userId,
+    actionUrl: `/my-assignments`
+  });
+
+  await sendNotificationToUser(userId, notification);
+};
+
+// Notificar al calificador cuando hay una nueva evaluación pendiente
+export const notifyCalificadorNewEvaluation = async (
+  calificadorIds: string[],
+  assignmentId: string,
+  responsableName: string
+): Promise<void> => {
+  for (const calificadorId of calificadorIds) {
+    const notification = createNotification({
+      title: '✅ Nueva Evaluación Pendiente',
+      message: `${responsableName} ha presentado evidencias. Requiere tu evaluación urgente.`,
+      type: 'evaluation_required',
+      priority: 'high',
+      userId: calificadorId,
+      actionUrl: `/admin/grading`
+    });
+
+    await sendNotificationToUser(calificadorId, notification);
+  }
+};
+
+// Notificar al responsable cuando su indicador ha sido evaluado
+export const notifyResponsableEvaluationComplete = async (
+  userId: string,
+  assignmentId: string,
+  approved: boolean,
+  calificadorName: string
+): Promise<void> => {
+  const notification = createNotification({
+    title: approved ? '✅ Indicador Aprobado' : '❌ Indicador Rechazado',
+    message: approved 
+      ? `¡Felicitaciones! Tu indicador ha sido aprobado por ${calificadorName}.`
+      : `Tu indicador ha sido rechazado por ${calificadorName}. Revisa los comentarios y vuelve a enviar.`,
+    type: 'assignment_evaluated',
+    priority: 'high',
+    userId,
+    actionUrl: `/my-assignments`
+  });
+
+  await sendNotificationToUser(userId, notification);
+};
+
+// Notificar recordatorio 2 días antes del vencimiento
+export const notifyResponsableUpcomingDueDate = async (
+  userId: string,
+  assignmentId: string,
+  daysRemaining: number,
+  indicatorName: string
+): Promise<void> => {
+  // Acortar el nombre del indicador si es muy largo
+  const shortName = indicatorName.length > 50 
+    ? indicatorName.substring(0, 50) + '...' 
+    : indicatorName;
+  
+  const notification = createNotification({
+    title: '⏰ Indicador por Vencer',
+    message: `"${shortName}" vence en ${daysRemaining} día(s). Envía tus evidencias pronto.`,
+    type: 'evaluation_reminder',
+    priority: 'high',
+    userId,
+    actionUrl: `/my-assignments`
+  });
+
+  await sendNotificationToUser(userId, notification);
+};
+
+// Notificar al responsable cuando su indicador ha vencido
+export const notifyResponsableOverdueAssignment = async (
+  userId: string,
+  assignmentId: string,
+  indicatorName: string
+): Promise<void> => {
+  // Acortar el nombre del indicador si es muy largo
+  const shortName = indicatorName.length > 50 
+    ? indicatorName.substring(0, 50) + '...' 
+    : indicatorName;
+  
+  const notification = createNotification({
+    title: '🚨 Indicador Vencido',
+    message: `"${shortName}" ha vencido. Complétalo lo antes posible.`,
+    type: 'assignment_overdue',
+    priority: 'high',
+    userId,
+    actionUrl: `/my-assignments`
+  });
+
+  await sendNotificationToUser(userId, notification);
+};
+
+// Notificar al administrador sobre asignaciones vencidas
+export const notifyAdminOverdueAssignments = async (
+  adminId: string,
+  overdueCount: number,
+  responsableNames: string[]
+): Promise<void> => {
+  const notification = createNotification({
+    title: '⚠️ Asignaciones Vencidas Detectadas',
+    message: `Hay ${overdueCount} asignación(es) vencida(s). Responsables: ${responsableNames.slice(0, 3).join(', ')}${responsableNames.length > 3 ? '...' : ''}`,
+    type: 'system_alert',
+    priority: 'high',
+    userId: adminId,
+    actionUrl: `/dashboard/admin`
+  });
+
+  await sendNotificationToUser(adminId, notification);
+};
+
+// Notificar al administrador cuando hay evaluaciones completadas
+export const notifyAdminEvaluationCompleted = async (
+  adminId: string,
+  responsableName: string,
+  approved: boolean
+): Promise<void> => {
+  const notification = createNotification({
+    title: approved ? '✅ Evaluación Aprobada' : '❌ Evaluación Rechazada',
+    message: `La evaluación de ${responsableName} ha sido ${approved ? 'aprobada' : 'rechazada'}.`,
+    type: 'assignment_evaluated',
+    priority: 'medium',
+    userId: adminId,
+    actionUrl: `/dashboard/admin`
+  });
+
+  await sendNotificationToUser(adminId, notification);
+};
+
+// Notificar al calificador recordatorio de evaluaciones pendientes
+export const notifyCalificadorPendingEvaluations = async (
+  calificadorId: string,
+  pendingCount: number
+): Promise<void> => {
+  const notification = createNotification({
+    title: '📝 Evaluaciones Pendientes',
+    message: `Tienes ${pendingCount} evaluación(es) pendiente(s) que requieren tu atención.`,
+    type: 'evaluation_reminder',
+    priority: 'medium',
+    userId: calificadorId,
+    actionUrl: `/admin/grading`
+  });
+
+  await sendNotificationToUser(calificadorId, notification);
+};
+
+// Notificación manual personalizada (para administradores)
+export const sendCustomNotification = async (
+  userIds: string[],
+  title: string,
+  message: string,
+  priority: 'low' | 'medium' | 'high',
+  actionUrl?: string,
+  senderName?: string
+): Promise<void> => {
+  for (const userId of userIds) {
+    const notification = createNotification({
+      title,
+      message,
+      type: 'system_alert',
+      priority,
+      userId,
+      actionUrl
+    });
+
+    // Agregar el nombre del remitente si existe
+    if (senderName) {
+      (notification as any).senderName = senderName;
+    }
+
+    await sendNotificationToUser(userId, notification);
+  }
 }; 

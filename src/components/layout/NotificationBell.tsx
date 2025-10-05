@@ -20,6 +20,8 @@ import {
   getUnreadNotifications,
   getHighPriorityNotifications
 } from '@/lib/notificationService';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { firestore as db } from '@/lib/firebase';
 
 const notificationIcons = {
   info: Info,
@@ -39,6 +41,40 @@ export function NotificationBell() {
   const { user, updateUserProfile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
+  // ========== ACTUALIZACIÓN EN TIEMPO REAL ==========
+  // Listener de Firebase para detectar cambios en las notificaciones
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('🔔 Iniciando listener de notificaciones en tiempo real...');
+
+    // Crear referencia al documento del usuario
+    const userDocRef = doc(db, 'user', user.id);
+
+    // Escuchar cambios en tiempo real
+    const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const userData = docSnapshot.data();
+        const newNotifications = userData.notifications || [];
+        
+        // Actualizar solo si hay cambios
+        if (JSON.stringify(newNotifications) !== JSON.stringify(user.notifications)) {
+          console.log('🔔 Notificaciones actualizadas en tiempo real!');
+          updateUserProfile({ notifications: newNotifications });
+        }
+      }
+    }, (error) => {
+      console.error('❌ Error en listener de notificaciones:', error);
+    });
+
+    // Cleanup al desmontar
+    return () => {
+      console.log('🔔 Cerrando listener de notificaciones');
+      unsubscribe();
+    };
+  }, [user?.id]); // Solo depende del ID del usuario
+  // ================================================
+
   if (!user?.notifications) return null;
 
   const unreadNotifications = getUnreadNotifications(user.notifications);
@@ -51,9 +87,9 @@ export function NotificationBell() {
       await markNotificationAsRead(user.id, notificationId);
       
       // Actualizar el estado local
-      const updatedNotifications = user.notifications.map(n => 
+      const updatedNotifications = user?.notifications?.map(n => 
         n.id === notificationId ? { ...n, read: true } : n
-      );
+      ) ?? [];
       
       await updateUserProfile({ notifications: updatedNotifications });
     } catch (error) {
@@ -68,7 +104,7 @@ export function NotificationBell() {
       await markAllNotificationsAsRead(user.id);
       
       // Actualizar el estado local
-      const updatedNotifications = user.notifications.map(n => ({ ...n, read: true }));
+      const updatedNotifications = user?.notifications?.map(n => ({ ...n, read: true })) ?? [];
       await updateUserProfile({ notifications: updatedNotifications });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -82,25 +118,55 @@ export function NotificationBell() {
       await deleteNotification(user.id, notificationId);
       
       // Actualizar el estado local
-      const updatedNotifications = user.notifications.filter(n => n.id !== notificationId) ;
+      const updatedNotifications = user?.notifications?.filter(n => n.id !== notificationId) ?? [];
       await updateUserProfile({ notifications: updatedNotifications });
     } catch (error) {
       console.error('Error deleting notification:', error);
     }
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+  const formatDate = (date: Date | any) => {
+    try {
+      // Parsear la fecha de manera robusta
+      let dateObj: Date;
+      
+      if (date instanceof Date) {
+        dateObj = date;
+      } else if (typeof date === 'object' && date !== null && 'seconds' in date) {
+        // Timestamp de Firebase
+        dateObj = new Date(date.seconds * 1000);
+      } else if (typeof date === 'string') {
+        dateObj = new Date(date);
+      } else {
+        dateObj = new Date(date);
+      }
 
-    if (minutes < 1) return 'Ahora';
-    if (minutes < 60) return `Hace ${minutes} min`;
-    if (hours < 24) return `Hace ${hours} h`;
-    if (days < 7) return `Hace ${days} días`;
-    return new Date(date).toLocaleDateString();
+      // Validar que la fecha es válida
+      if (isNaN(dateObj.getTime())) {
+        return 'Reciente';
+      }
+
+      const now = new Date();
+      const diff = now.getTime() - dateObj.getTime();
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return 'Ahora';
+      if (minutes < 60) return `Hace ${minutes} min`;
+      if (hours < 24) return `Hace ${hours} h`;
+      if (days < 7) return `Hace ${days} días`;
+      
+      // Formato español: 05 Oct 2025
+      return dateObj.toLocaleDateString('es-ES', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Reciente';
+    }
   };
 
   const handleNotificationClick = async (notification: Notification) => {
@@ -191,7 +257,12 @@ export function NotificationBell() {
                               </Button>
                             </div>
                           </div>
-                          <p className="text-sm mt-1 opacity-90">{notification.message}</p>
+                          <p className="text-sm mt-1 opacity-90 line-clamp-3">{notification.message}</p>
+                          {notification.senderName && (
+                            <p className="text-xs mt-1.5 opacity-60 italic border-t pt-1.5 mt-2">
+                              De: {notification.senderName}
+                            </p>
+                          )}
                           {notification.actionUrl && (
                             <Button 
                               variant="link" 

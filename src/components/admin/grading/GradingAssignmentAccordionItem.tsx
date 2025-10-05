@@ -113,11 +113,44 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
       });
 
       const newOverallStatus = calculateOverallStatus(updatedMethods);
+      const previousStatus = assignment.overallStatus;
       
       await updateAssignedIndicator(assignment.id!, {
         assignedVerificationMethods: updatedMethods,
         overallStatus: newOverallStatus
       });
+      
+      // Enviar notificaciones cuando la evaluación se completa
+      if ((newOverallStatus === 'Approved' || newOverallStatus === 'Rejected') && 
+          (previousStatus !== 'Approved' && previousStatus !== 'Rejected')) {
+        try {
+          const { notifyResponsableEvaluationComplete, notifyAdminEvaluationCompleted } = await import('@/lib/notificationService');
+          const { getUserById, getAllUsers } = await import('@/lib/data');
+          
+          // Notificar al responsable
+          await notifyResponsableEvaluationComplete(
+            assignment.userId,
+            assignment.id!,
+            newOverallStatus === 'Approved',
+            currentUser?.name || 'Calificador'
+          );
+          
+          // Notificar a los administradores
+          const allUsers = await getAllUsers();
+          const admins = allUsers.filter(u => u.role === 'admin');
+          const responsable = await getUserById(assignment.userId);
+          
+          for (const admin of admins) {
+            await notifyAdminEvaluationCompleted(
+              admin.id,
+              responsable?.name || 'Responsable',
+              newOverallStatus === 'Approved'
+            );
+          }
+        } catch (error) {
+          console.error('Error enviando notificaciones de evaluación:', error);
+        }
+      }
       
       onUpdate(assignment.id!, updatedMethods, newOverallStatus);
     } finally {

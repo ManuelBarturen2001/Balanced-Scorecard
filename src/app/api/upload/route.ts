@@ -143,6 +143,25 @@ export async function POST(request: NextRequest) {
       overallStatus: newOverallStatus
     });
 
+    // Enviar notificaciones a los calificadores si el estado cambió a Submitted
+    if (newOverallStatus === 'Submitted' && assignedIndicator.overallStatus !== 'Submitted') {
+      try {
+        const { notifyCalificadorNewEvaluation } = await import('@/lib/notificationService');
+        const { getUserById } = await import('@/lib/data');
+        
+        if (assignedIndicator.jury && assignedIndicator.jury.length > 0) {
+          const responsable = await getUserById(assignedIndicator.userId);
+          await notifyCalificadorNewEvaluation(
+            assignedIndicator.jury,
+            assignedIndicatorId,
+            responsable?.name || 'Un responsable'
+          );
+        }
+      } catch (error) {
+        console.error('Error enviando notificación a calificadores:', error);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       file: newFile,

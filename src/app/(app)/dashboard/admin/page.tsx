@@ -41,6 +41,7 @@ import { format, isPast, isToday, isWithinInterval, subDays, subWeeks, subMonths
 import { es } from 'date-fns/locale';
 import type { VerificationStatus } from '@/lib/types';
 import { Pie, Bar, Line } from 'react-chartjs-2';
+import { SendNotificationDialog } from '@/components/admin/SendNotificationDialog';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement);
 
@@ -1165,6 +1166,7 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <SendNotificationDialog users={users} />
           <Button onClick={generatePDFReport} variant="outline" size="sm">
             <FileDown className="h-4 w-4 mr-2" />
             Reporte PDF

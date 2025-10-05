@@ -401,6 +401,19 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
 
       const docId = await insertAssignedIndicator(newAssignedIndicator);
       
+      // Enviar notificación al responsable
+      try {
+        const { notifyResponsableNewAssignment } = await import('@/lib/notificationService');
+        const indicator = indicators.find(i => i.id === selectedIndicatorId);
+        await notifyResponsableNewAssignment(
+          targetUserId,
+          docId,
+          indicator?.name || 'Indicador'
+        );
+      } catch (error) {
+        console.error('Error enviando notificación:', error);
+      }
+      
       toast({
         title: "Indicador Asignado Exitosamente",
         description: `El indicador ha sido asignado y guardado en la base de datos con ID: ${docId}`,

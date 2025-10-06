@@ -49,7 +49,7 @@ export function sanitizeUserName(userName: string): string {
 export async function saveUploadedFile(
   file: File,
   userName: string,
-  assignedIndicatorId: string,
+  indicatorId: string,
   verificationMethodName: string
 ): Promise<FileUploadResult> {
   try {
@@ -69,14 +69,18 @@ export async function saveUploadedFile(
       };
     }
 
-    // Crear estructura de carpetas
+    // Crear estructura de carpetas: uploads/(nombre)/(indicatorId)/
     const sanitizedUserName = sanitizeUserName(userName);
     const userDir = path.join(UPLOAD_DIR, sanitizedUserName);
+    const indicatorDir = path.join(userDir, indicatorId);
+    
+    // Crear las carpetas si no existen
     await ensureDirectoryExists(userDir);
+    await ensureDirectoryExists(indicatorDir);
 
     // Generar nombre único para el archivo
     const uniqueFileName = generateUniqueFileName(file.name);
-    const filePath = path.join(userDir, uniqueFileName);
+    const filePath = path.join(indicatorDir, uniqueFileName);
 
     // Convertir File a Buffer y guardar
     const bytes = await file.arrayBuffer();
@@ -84,21 +88,21 @@ export async function saveUploadedFile(
     
     await fs.writeFile(filePath, buffer);
 
-    // ✅ CORREGIR: Crear la ruta relativa correcta para la URL
-    const relativePath = `${sanitizedUserName}/${uniqueFileName}`;
+    // Crear la ruta relativa correcta para la URL
+    const relativePath = `${sanitizedUserName}/${indicatorId}/${uniqueFileName}`;
 
-    console.log('File saved at:', filePath);
-    console.log('Relative path for URL:', relativePath);
+    console.log('✅ File saved at:', filePath);
+    console.log('✅ Relative path for URL:', relativePath);
 
     return {
       success: true,
       fileName: uniqueFileName,
-      filePath: relativePath, // ✅ Ruta relativa que coincide con cómo se guarda
+      filePath: relativePath,
       size: file.size
     };
 
   } catch (error) {
-    console.error('Error saving file:', error);
+    console.error('❌ Error saving file:', error);
     return {
       success: false,
       error: 'Error interno al guardar el archivo'

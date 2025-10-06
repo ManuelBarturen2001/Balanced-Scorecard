@@ -450,6 +450,8 @@ export default function MyAssignmentsPage() {
                             formData.append('verificationMethodName', verificationMethodName);
                             formData.append('userId', user?.id || '');
                             
+                            console.log('🚀 Starting upload...', { assignedIndicatorId, verificationMethodName });
+                            
                             const response = await fetch('/api/upload', {
                               method: 'POST',
                               body: formData,
@@ -459,13 +461,70 @@ export default function MyAssignmentsPage() {
                               throw new Error('Error al subir el archivo');
                             }
                             
-                            // Recargar las asignaciones
-                            const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user?.id || '');
-                            if (allAssignedIndicators) {
-                              setUserAssignments(allAssignedIndicators as AssignedIndicator[]);
+                            console.log('✅ Upload successful! Refreshing data...');
+                            
+                            // Esperar a que Firebase propague los cambios
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            
+                            // Recargar las asignaciones VARIAS veces para asegurar
+                            let attempts = 0;
+                            const maxAttempts = 3;
+                            
+                            while (attempts < maxAttempts) {
+                              console.log(`🔄 Attempt ${attempts + 1}/${maxAttempts}: Fetching updated data...`);
+                              
+                              const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user?.id || '');
+                              
+                              if (allAssignedIndicators) {
+                                const updatedAssignment = allAssignedIndicators.find(
+                                  (a: any) => a.id === assignedIndicatorId
+                                ) as AssignedIndicator;
+                                
+                                // Verificar si el método de verificación se actualizó
+                                if (updatedAssignment) {
+                                  const updatedMethod = updatedAssignment.assignedVerificationMethods.find(
+                                    m => m.name === verificationMethodName
+                                  );
+                                  
+                                  console.log('📊 Method status:', updatedMethod?.status);
+                                  console.log('📊 Has file:', !!updatedMethod?.submittedFile);
+                                  
+                                  if (updatedMethod?.status === 'Submitted' || updatedMethod?.submittedFile) {
+                                    console.log('✅ Data confirmed updated! Updating UI...');
+                                    setUserAssignments(allAssignedIndicators as AssignedIndicator[]);
+                                    
+                                    // Actualizar modal si está abierto
+                                    if (selectedAssignment && selectedAssignment.id === assignedIndicatorId) {
+                                      setSelectedAssignment(updatedAssignment);
+                                    }
+                                    
+                                    console.log('✅✅ UI updated successfully!');
+                                    break; // Salir del loop
+                                  } else {
+                                    console.log('⚠️ Data not yet updated, waiting...');
+                                  }
+                                }
+                              }
+                              
+                              attempts++;
+                              if (attempts < maxAttempts) {
+                                await new Promise(resolve => setTimeout(resolve, 800));
+                              }
+                            }
+                            
+                            if (attempts >= maxAttempts) {
+                              console.log('⚠️ Max attempts reached, forcing UI update anyway...');
+                              const allAssignedIndicators = await getCollectionWhereCondition('assigned_indicator', 'userId', user?.id || '');
+                              if (allAssignedIndicators) {
+                                setUserAssignments(allAssignedIndicators as AssignedIndicator[]);
+                                const updatedAssignment = allAssignedIndicators.find((a: any) => a.id === assignedIndicatorId);
+                                if (selectedAssignment && updatedAssignment) {
+                                  setSelectedAssignment(updatedAssignment as AssignedIndicator);
+                                }
+                              }
                             }
                           } catch (error) {
-                            console.error('Error uploading file:', error);
+                            console.error('❌ Error uploading file:', error);
                             throw error;
                           }
                         }}

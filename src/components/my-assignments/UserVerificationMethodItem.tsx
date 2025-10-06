@@ -67,21 +67,26 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
   const [fileHistory, setFileHistory] = useState<FileHistoryItem[]>([]);
 
   useEffect(() => {
-    console.log(verificationMethod)
+    console.log('🔄 UserVerificationMethodItem: Props changed', {
+      methodName: verificationMethod.name,
+      status: verificationMethod.status,
+      hasFile: !!verificationMethod.submittedFile
+    });
+    
     setLocalMethod(verificationMethod);
     
     // Cargar el historial desde Firebase si existe
     if (verificationMethod.fileHistory && Array.isArray(verificationMethod.fileHistory)) {
       // Convertir las fechas del historial de manera segura
              const validHistory = verificationMethod.fileHistory.map(file => ({
-         name: file.name || 'Archivo',
-         url: file.url || '',
-         uploadedAt: file.uploadedAt ? (typeof file.uploadedAt === 'string' ? file.uploadedAt : new Date(file.uploadedAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0], // Usar solo fechas
-         size: file.size || 0,
-         type: file.type || 'file'
-       }));
+        name: file.name || 'Archivo',
+        url: file.url || '',
+        uploadedAt: file.uploadedAt ? (typeof file.uploadedAt === 'string' ? file.uploadedAt : new Date(file.uploadedAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0], // Usar solo fechas
+        size: file.size || 0,
+        type: file.type || 'file'
+      }));
       setFileHistory(validHistory);
-      console.log('Historial cargado:', validHistory);
+      console.log('✅ Historial cargado:', validHistory);
     }
   }, [verificationMethod]);
 

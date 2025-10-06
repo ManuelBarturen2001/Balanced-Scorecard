@@ -65,24 +65,23 @@ export function AppSidebar() {
                 }
                 // Permitir que los asignadores vean "Asignar Indicadores"
                 if (item.title === 'Asignar Indicadores') {
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <Link href={item.href} legacyBehavior passHref>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)}
-                          tooltip={{ children: item.title, side: 'right', align: 'center' }}
-                          className={cn(
-                            "w-full justify-start transition-all duration-200 hover:bg-muted/50",
-                            (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)) && "bg-primary/10 text-primary border-l-2 border-primary"
-                          )}
-                        >
-                          <a>
-                            <item.icon className="h-5 w-5 flex-shrink-0" />
-                            <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
-                          </a>
-                        </SidebarMenuButton>
-                      </Link>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={{ children: item.title, side: 'right', align: 'center' }}
+                        className={cn(
+                          "w-full justify-start transition-colors duration-150 hover:bg-muted/50",
+                          isActive && "bg-primary/10 text-primary border-l-2 border-primary"
+                        )}
+                      >
+                        <Link href={item.href} prefetch={true} className="flex items-center gap-2">
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
+                          <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 }
@@ -95,24 +94,23 @@ export function AppSidebar() {
                 }
                 // Permitir que los calificadores vean "Calificación"
                 if (item.title === 'Calificación') {
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <Link href={item.href} legacyBehavior passHref>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)}
-                          tooltip={{ children: item.title, side: 'right', align: 'center' }}
-                          className={cn(
-                            "w-full justify-start transition-all duration-200 hover:bg-muted/50",
-                            (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1)) && "bg-primary/10 text-primary border-l-2 border-primary"
-                          )}
-                        >
-                          <a>
-                            <item.icon className="h-5 w-5 flex-shrink-0" />
-                            <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
-                          </a>
-                        </SidebarMenuButton>
-                      </Link>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={{ children: item.title, side: 'right', align: 'center' }}
+                        className={cn(
+                          "w-full justify-start transition-colors duration-150 hover:bg-muted/50",
+                          isActive && "bg-primary/10 text-primary border-l-2 border-primary"
+                        )}
+                      >
+                        <Link href={item.href} prefetch={true} className="flex items-center gap-2">
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
+                          <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 }
@@ -130,22 +128,20 @@ export function AppSidebar() {
               const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);
               return (
                 <SidebarMenuItem key={item.title}>
-                  <Link href={item.href} legacyBehavior passHref>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={{ children: item.title, side: 'right', align: 'center' }}
-                      className={cn(
-                        "w-full justify-start transition-all duration-200 hover:bg-muted/50",
-                        isActive && "bg-primary/10 text-primary border-l-2 border-primary"
-                      )}
-                    >
-                      <a>
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
-                        <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  </Link>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive}
+                    tooltip={{ children: item.title, side: 'right', align: 'center' }}
+                    className={cn(
+                      "w-full justify-start transition-colors duration-150 hover:bg-muted/50",
+                      isActive && "bg-primary/10 text-primary border-l-2 border-primary"
+                    )}
+                  >
+                    <Link href={item.href} className="flex items-center gap-2">
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               );
             })}

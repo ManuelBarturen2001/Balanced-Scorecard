@@ -194,7 +194,7 @@ export function UserAssignmentCard({ assignedIndicator, onViewDetails, onFileUpl
                 <div className="space-y-3">
                   {assignedIndicator.assignedVerificationMethods.map((vm,index) => (
                     <UserVerificationMethodItem
-                      key={index}
+                      key={`${assignedIndicator.id}-${index}-${vm.status}-${JSON.stringify(vm.submittedFile)}`}
                       assignedIndicatorId={assignedIndicator.id!}
                       verificationMethod={vm}
                       onFileUpload={onFileUpload}

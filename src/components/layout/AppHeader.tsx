@@ -16,7 +16,7 @@ import { LogOut, UserCircle, Settings, PanelLeft } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar'; 
 import { Logo } from './Logo';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { RoleSwitcher } from './RoleSwitcher';
+// import { RoleSwitcher } from './RoleSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -30,7 +30,7 @@ const roleLabels = {
 };
 
 export function AppHeader() {
-  const { user, logout } = useAuth();
+  const { user, logout, setActiveRole } = useAuth();
   const { toggleSidebar } = useSidebar(); 
   const router = useRouter();
 
@@ -63,8 +63,7 @@ export function AppHeader() {
               {/* Notificaciones */}
               <NotificationBell />
               
-              {/* Cambio de roles para usuarios variantes */}
-              <RoleSwitcher />
+              {/* Cambio de roles se ofrece dentro del menú del usuario */}
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -95,6 +94,29 @@ export function AppHeader() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {/* Cambiar de rol para usuarios con roles variantes */}
+                  {user.roleType === 'variante' && (user.availableRoles?.length || 0) > 1 && (
+                    <>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">Cambiar de rol</DropdownMenuLabel>
+                      {['responsable','calificador']
+                        .filter(r => user.availableRoles?.includes(r as any))
+                        .map((r) => (
+                          <DropdownMenuItem
+                            key={r}
+                            onClick={() => {
+                              if (r === user.role) return;
+                              setActiveRole(r as any);
+                              router.push(r === 'responsable' ? '/dashboard/usuario' : '/dashboard/calificador');
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <span className="mr-2 h-2 w-2 rounded-full" style={{ backgroundColor: r === user.role ? 'var(--primary)' : 'transparent', border: '1px solid var(--border)' }} />
+                            <span>{r === 'responsable' ? 'Responsable' : 'Calificador'}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <Link href="/profile" passHref legacyBehavior>
                     <DropdownMenuItem asChild>
                         <a>

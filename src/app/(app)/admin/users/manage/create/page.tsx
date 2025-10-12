@@ -85,7 +85,9 @@ export default function CreateUserPage() {
   useEffect(() => {
     const config = roleConfig[role];
     setRoleType(config.type);
-    setAvailableRoles(config.availableRoles as UserRole[]);
+    // Para roles variante (responsable/calificador) solo incluimos el rol principal por defecto
+    // El rol secundario se podrá activar desde un único checkbox
+    setAvailableRoles([role]);
   }, [role]);
 
   const getInitials = (nameStr: string = "") => {
@@ -177,6 +179,9 @@ export default function CreateUserPage() {
       setIsSaving(false);
     }
   };
+
+  // Rol secundario mostrado como único checkbox cuando el tipo es variante
+  const secondaryRole: UserRole = role === 'responsable' ? 'calificador' : 'responsable';
 
   return (
     <div className="container mx-auto py-6">
@@ -275,27 +280,18 @@ export default function CreateUserPage() {
 
                 {roleType === 'variante' && (
                   <div className="space-y-2">
-                    <Label>Roles Disponibles</Label>
-                    <div className="space-y-2">
-                      {availableRoles.map((availableRole) => (
-                        <div key={availableRole} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={availableRole} 
-                            checked={availableRoles.includes(availableRole)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setAvailableRoles(prev => [...prev, availableRole]);
-                              } else {
-                                setAvailableRoles(prev => prev.filter(r => r !== availableRole));
-                              }
-                            }}
-                          />
-                          <Label htmlFor={availableRole} className="text-sm">
-                          {availableRole === 'responsable' && 'Responsable'}
-                            {availableRole === 'calificador' && 'Calificador'}
-                          </Label>
-                        </div>
-                      ))}
+                    <Label>Rol Secundario</Label>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="secondaryRole"
+                        checked={availableRoles.includes(secondaryRole)}
+                        onCheckedChange={(checked) => {
+                          setAvailableRoles(checked ? [role, secondaryRole] : [role]);
+                        }}
+                      />
+                      <Label htmlFor="secondaryRole" className="text-sm">
+                        {secondaryRole === 'responsable' ? 'Responsable' : 'Calificador'}
+                      </Label>
                     </div>
                   </div>
                 )}

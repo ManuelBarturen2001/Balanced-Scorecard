@@ -1,6 +1,6 @@
 "use client";
 
-import type { User } from '@/lib/types';
+import type { User, UserRole } from '@/lib/types';
 import { auth, firestore } from '../lib/firebase';
 import { signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -16,6 +16,7 @@ interface AuthContextType {
   changePassword: (newPassword: string) => Promise<void>;
   markAsExperienced: () => Promise<void>;
   reloadUser: () => Promise<void>;
+  setActiveRole: (role: UserRole) => void;
   isAdmin: boolean;
   isAsignador: boolean;
   isCalificador: boolean;
@@ -106,6 +107,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { getUserById } = await import('@/lib/data');
       const latest = await getUserById(user.id);
       if (latest) {
+        const currentActiveRole = user.role; // preservar rol activo de la sesión
         const defaultUserData = {
           ...latest,
           roleType: latest.roleType || 'variante',
@@ -113,6 +115,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           notifications: latest.notifications || [],
           stats: latest.stats || {},
         } as User;
+        // Mantener el rol activo actual si es válido
+        if (defaultUserData.availableRoles?.includes(currentActiveRole)) {
+          (defaultUserData as User).role = currentActiveRole;
+        }
         setUser(defaultUserData);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(defaultUserData));
       }
@@ -126,20 +132,49 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isCalificador = user?.role === 'calificador';
   const isResponsable = user?.role === 'responsable';
 
-  const updateUserProfile = useCallback(async (updatedData: Partial<Omit<User, 'id' | 'role'> | { role: string }>) => {
+  const updateUserProfile = useCallback(
+  async (updatedData: Partial<Omit<User, 'id' | 'role'> & { role?: UserRole }>) => {
     if (!user) throw new Error("Usuario no autenticado");
-    
-    // Importar la función updateUser de data.ts
+
     const { updateUser } = await import('@/lib/data');
-    
-    // Actualizar en Firebase
+
     await updateUser(user.id, updatedData as Partial<User>);
-    
-    // Actualizar estado local
+
     const updatedUser = { ...user, ...updatedData };
     console.log('Updating user state:', updatedUser);
+
     setUser(updatedUser);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+  },
+  [user]
+);
+
+
+  // const updateUserProfile = useCallback(async (updatedData: Partial<Omit<User, 'id' | 'role'> | { role: string }>) => {
+  //   if (!user) throw new Error("Usuario no autenticado");
+    
+  //   // Importar la función updateUser de data.ts
+  //   const { updateUser } = await import('@/lib/data');
+    
+  //   // Actualizar en Firebase
+  //   await updateUser(user.id, updatedData as Partial<User>);
+    
+  //   // Actualizar estado local
+  //   const updatedUser = { ...user, ...updatedData };
+  //   console.log('Updating user state:', updatedUser);
+  //   setUser(updatedUser);
+  //   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+  // }, [user]);
+
+  // Cambiar el rol activo localmente (no persistente) y redibujar la app
+  const setActiveRole = useCallback((role: UserRole) => {
+    if (!user) return;
+    if (user.role === role) return;
+    if (user.roleType === 'variante' && user.availableRoles && user.availableRoles.includes(role)) {
+      const updatedUser = { ...user, role } as User;
+      setUser(updatedUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+    }
   }, [user]);
 
   const changePassword = useCallback(async (newPassword: string) => {
@@ -163,6 +198,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         login, 
         logout, 
         reloadUser,
+        setActiveRole,
         isAdmin, 
         isAsignador,
         isCalificador,

@@ -21,6 +21,7 @@ interface AuthContextType {
   isAsignador: boolean;
   isCalificador: boolean;
   isResponsable: boolean;
+  isSupervisor: boolean;
   loading: boolean;
 }
 
@@ -131,6 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isAsignador = user?.role === 'asignador';
   const isCalificador = user?.role === 'calificador';
   const isResponsable = user?.role === 'responsable';
+  const isSupervisor = user?.role === 'supervisor';
 
   const updateUserProfile = useCallback(
   async (updatedData: Partial<Omit<User, 'id' | 'role'> & { role?: UserRole }>) => {
@@ -148,23 +150,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   },
   [user]
 );
-
-
-  // const updateUserProfile = useCallback(async (updatedData: Partial<Omit<User, 'id' | 'role'> | { role: string }>) => {
-  //   if (!user) throw new Error("Usuario no autenticado");
-    
-  //   // Importar la función updateUser de data.ts
-  //   const { updateUser } = await import('@/lib/data');
-    
-  //   // Actualizar en Firebase
-  //   await updateUser(user.id, updatedData as Partial<User>);
-    
-  //   // Actualizar estado local
-  //   const updatedUser = { ...user, ...updatedData };
-  //   console.log('Updating user state:', updatedUser);
-  //   setUser(updatedUser);
-  //   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-  // }, [user]);
 
   // Cambiar el rol activo localmente (no persistente) y redibujar la app
   const setActiveRole = useCallback((role: UserRole) => {
@@ -203,6 +188,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAsignador,
         isCalificador,
         isResponsable,
+        isSupervisor,
         loading, 
         updateUserProfile, 
         changePassword, 

@@ -26,6 +26,9 @@ export default function DashboardPage() {
         case 'admin':
           router.push('/dashboard/admin');
           break;
+        case 'supervisor':
+          router.push('/dashboard/supervisor');
+          break;
         default:
           // Si no tiene rol específico, ir al dashboard de responsable
           router.push('/dashboard');

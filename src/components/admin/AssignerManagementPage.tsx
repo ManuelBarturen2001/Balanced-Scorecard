@@ -11,9 +11,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, AssignedIndicator, Faculty, Perspective, ProfessionalSchool, Office } from '@/lib/types';
 import { UserIcon } from 'lucide-react';
 import { getAssigners, getAllAssignedIndicators, getUserById, getFacultyById, getPerspectiveById, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllUsers } from '@/lib/data';
+import { useAuth } from '@/hooks/useAuth';
 
 
 export default function AssignerManagementPage() {
+  const { isAdmin, isSupervisor } = useAuth();
   const [assigners, setAssigners] = useState<User[]>([]);
   const [filteredAssigners, setFilteredAssigners] = useState<User[]>([]);
   const [search, setSearch] = useState('');

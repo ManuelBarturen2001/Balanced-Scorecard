@@ -14,7 +14,7 @@ import { getCollection } from '@/lib/firebase-functions';
 import type { AssignedIndicator } from '@/lib/types';
 
 export default function GradingPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, isSupervisor, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const [assignmentsToGrade, setAssignmentsToGrade] = useState<AssignedIndicator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,8 +112,8 @@ export default function GradingPage() {
     );
   }
 
-  // Verificar si el usuario es calificador
-  if (user.role !== 'calificador' && user.role !== 'admin') {
+  // Verificar si el usuario es calificador, admin o supervisor
+  if (user.role !== 'calificador' && user.role !== 'admin' && user.role !== 'supervisor') {
     return (
       <div className="container mx-auto py-6">
         <Card>
@@ -121,7 +121,7 @@ export default function GradingPage() {
             <div className="text-center">
               <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Acceso Restringido</h3>
-              <p className="text-muted-foreground">Solo los calificadores pueden acceder a esta página.</p>
+              <p className="text-muted-foreground">Solo los calificadores, administradores y supervisores pueden acceder a esta página.</p>
             </div>
           </CardContent>
         </Card>

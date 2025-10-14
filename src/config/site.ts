@@ -1,6 +1,6 @@
 
 import type { NavItemConfig } from '@/lib/types';
-import { LayoutDashboard, ListPlus, Users, ClipboardList, ClipboardCheck, UserCheck } from 'lucide-react';
+import { LayoutDashboard, ListPlus, Users, ClipboardList, ClipboardCheck, UserCheck, BarChart3 } from 'lucide-react';
 
 export const AppConfig = {
   name: "Sistema Web de Balanced Scorecard",
@@ -22,6 +22,12 @@ export const navItems: NavItemConfig[] = [
     title: 'Asignar Indicadores',
     href: '/assign-indicators',
     icon: ListPlus,
+    adminOnly: true,
+  },
+  {
+    title: 'Gestión de Indicadores',
+    href: '/admin/indicator-management',
+    icon: BarChart3,
     adminOnly: true,
   },
   {

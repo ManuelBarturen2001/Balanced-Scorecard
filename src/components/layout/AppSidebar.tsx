@@ -22,7 +22,7 @@ import {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isSupervisor, logout } = useAuth();
   const { state: sidebarState } = useSidebar(); 
 
   if (!user) return null;
@@ -94,6 +94,41 @@ export function AppSidebar() {
                 }
                 // Permitir que los calificadores vean "Calificación"
                 if (item.title === 'Calificación') {
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={{ children: item.title, side: 'right', align: 'center' }}
+                        className={cn(
+                          "w-full justify-start transition-colors duration-150 hover:bg-muted/50",
+                          isActive && "bg-primary/10 text-primary border-l-2 border-primary"
+                        )}
+                      >
+                        <Link href={item.href} prefetch={true} className="flex items-center gap-2">
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
+                          <span className={cn(sidebarState === 'collapsed' && "md:hidden")}>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+              }
+              
+              // Para supervisores, mostrar Dashboard y todas las páginas de gestión (solo lectura)
+              if (user?.role === 'supervisor') {
+                if (item.title === 'Mis asignaciones' || item.title === 'Asignar Indicadores') {
+                  return null;
+                }
+                // Para supervisores, mostrar todas las páginas de gestión
+                if (
+                  item.title === 'Gestión de Usuarios' ||
+                  item.title === 'Gestión de Asignadores' ||
+                  item.title === 'Gestión de Calificadores' ||
+                  item.title === 'Gestión de Calificaciones' ||
+                  item.title === 'Gestión de Indicadores'
+                ) {
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);
                   return (
                     <SidebarMenuItem key={item.title}>

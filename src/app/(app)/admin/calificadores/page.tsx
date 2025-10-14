@@ -20,7 +20,7 @@ import { getAllFaculties, getAllProfessionalSchools, getAllOffices } from '@/lib
 import type { ProfessionalSchool } from '@/lib/types';
 
 export default function CalificadoresPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSupervisor, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [calificadores, setCalificadores] = useState<User[]>([]);
   const [filteredCalificadores, setFilteredCalificadores] = useState<User[]>([]);
@@ -37,7 +37,7 @@ export default function CalificadoresPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
+    if (!authLoading && !isAdmin && !isSupervisor) {
       window.location.href = '/dashboard';
       return;
     }
@@ -72,10 +72,10 @@ export default function CalificadoresPage() {
       }
     };
 
-    if (isAdmin) {
+    if (isAdmin || isSupervisor) {
       fetchData();
     }
-  }, [isAdmin, authLoading, toast]);
+  }, [isAdmin, isSupervisor, authLoading, toast]);
 
   const getInitials = (name: string = "") => {
     const names = name.split(' ');
@@ -176,7 +176,7 @@ export default function CalificadoresPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSupervisor) {
     return null;
   }
 

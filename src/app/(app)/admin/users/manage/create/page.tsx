@@ -45,7 +45,8 @@ export default function CreateUserPage() {
     responsable: { type: 'variante' as RoleType, availableRoles: ['responsable', 'calificador'] },
     calificador: { type: 'variante' as RoleType, availableRoles: ['responsable', 'calificador'] },
     asignador: { type: 'unico' as RoleType, availableRoles: ['asignador'] },
-    admin: { type: 'unico' as RoleType, availableRoles: ['admin'] }
+    admin: { type: 'unico' as RoleType, availableRoles: ['admin'] },
+    supervisor: { type: 'unico' as RoleType, availableRoles: ['supervisor'] }
   };
 
   useEffect(() => {
@@ -258,7 +259,8 @@ export default function CreateUserPage() {
                         <SelectItem value="responsable">Responsable (Rol Variante)</SelectItem>
                         <SelectItem value="calificador">Calificador (Rol Variante)</SelectItem>
                         <SelectItem value="asignador">Asignador (Rol Único)</SelectItem>
-                        <SelectItem value="admin">Administrador (Rol Único)</SelectItem>
+                        <SelectItem value="admin">Administrador del Sistema (Rol Único)</SelectItem>
+                        <SelectItem value="supervisor">Supervisor (Rol Único)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -293,6 +295,23 @@ export default function CreateUserPage() {
                         {secondaryRole === 'responsable' ? 'Responsable' : 'Calificador'}
                       </Label>
                     </div>
+                  </div>
+                )}
+
+                {/* Información adicional para roles específicos */}
+                {role === 'admin' && (
+                  <div className="p-3 border rounded-md bg-blue-50 border-blue-200">
+                    <p className="text-sm text-blue-800">
+                      <strong>Administrador del Sistema:</strong> Tendrá acceso completo a todas las funcionalidades del sistema, incluyendo gestión de usuarios, asignaciones, calificaciones y configuración.
+                    </p>
+                  </div>
+                )}
+
+                {role === 'supervisor' && (
+                  <div className="p-3 border rounded-md bg-orange-50 border-orange-200">
+                    <p className="text-sm text-orange-800">
+                      <strong>Supervisor:</strong> Podrá ver la gestión general del sistema y enviar notificaciones, pero no podrá crear o editar usuarios.
+                    </p>
                   </div>
                 )}
               </div>
@@ -451,7 +470,6 @@ export default function CreateUserPage() {
                   </div>
                 )}
               </div>
-
 
               {/* Contraseña */}
               <div className="space-y-4">

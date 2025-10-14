@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default function AdminUsersPage() {
-  const { isAdmin, loading: authLoading, user: currentUser } = useAuth();
+  const { isAdmin, isSupervisor, loading: authLoading, user: currentUser } = useAuth();
   const router = useRouter();
   const [currentUsers, setCurrentUsers] = useState<User[]>([]); 
   const [loading, setLoading] = useState(true);
@@ -39,10 +39,10 @@ export default function AdminUsersPage() {
 
 
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
+    if (!authLoading && !isAdmin && !isSupervisor) {
       router.replace('/dashboard'); 
     }
-  }, [isAdmin, authLoading, router]);
+  }, [isAdmin, isSupervisor, authLoading, router]);
 
   const handleUserUpdate = useCallback((userId: string, updates: Partial<User>) => {
     setCurrentUsers(prevUsers =>
@@ -74,13 +74,13 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSupervisor) {
     return (
       <Card className="m-auto mt-10 max-w-lg shadow-lg">
         <CardHeader className="items-center text-center">
             <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
           <CardTitle className="font-headline text-2xl">Acceso Denegado</CardTitle>
-          <CardDescription>No tienes privilegios de administrador para ver esta página.</CardDescription>
+          <CardDescription>No tienes privilegios para ver esta página.</CardDescription>
         </CardHeader>
         <CardContent className="text-center">
           <Button onClick={() => router.push('/dashboard')}>Volver al Panel Principal</Button>
@@ -116,12 +116,14 @@ export default function AdminUsersPage() {
                 Ver, gestionar y actualizar cuentas de usuario. (Acciones simuladas)
             </p>
         </div>
-        <Button onClick={() => router.push('/admin/users/manage/create')} className="w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Añadir Nuevo Usuario
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => router.push('/admin/users/manage/create')} className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Añadir Nuevo Usuario
+          </Button>
+        )}
       </div>
-      <UserManagementTable users={currentUsers} onUserUpdate={handleUserUpdate} onUserDelete={handleUserDelete} />
+      <UserManagementTable users={currentUsers} onUserUpdate={handleUserUpdate} onUserDelete={handleUserDelete} isSupervisor={isSupervisor} />
     </div>
   );
 }

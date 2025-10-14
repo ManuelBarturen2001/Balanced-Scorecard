@@ -39,7 +39,8 @@ import type { Faculty, ProfessionalSchool, Office } from '@/lib/types';
 interface UserManagementTableProps {
   users: User[];
   onUserUpdate: (userId: string, updates: Partial<User>) => void; 
-  onUserDelete: (userId: string) => void; 
+  onUserDelete: (userId: string) => void;
+  isSupervisor?: boolean;
 }
 
 const roleTranslations: Record<UserRole, string> = {
@@ -47,6 +48,7 @@ const roleTranslations: Record<UserRole, string> = {
   calificador: "Calificador",
   asignador: "Asignador",
   admin: "Administrador",
+  supervisor: "Supervisor",
 };
 
 const roleTypeTranslations: Record<RoleType, string> = {
@@ -59,9 +61,10 @@ const roleColors: Record<UserRole, string> = {
   calificador: "bg-green-100 text-green-800",
   asignador: "bg-purple-100 text-purple-800",
   admin: "bg-red-100 text-red-800",
+  supervisor: "bg-orange-100 text-orange-800",
 };
 
-export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserManagementTableProps) {
+export function UserManagementTable({ users, onUserUpdate, onUserDelete, isSupervisor = false }: UserManagementTableProps) {
   const { toast } = useToast();
   
   // Estados para filtros
@@ -356,60 +359,69 @@ export function UserManagementTable({ users, onUserUpdate, onUserDelete }: UserM
                 {user.officeId ? getOfficeName(user.officeId) : 'Sin oficina'}
               </TableCell>
               <TableCell className="px-4 text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <span className="sr-only">Abrir menú</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={`/admin/users/manage/${user.id}`} className="flex items-center">
-                        <Edit3 className="mr-2 h-4 w-4" />
-                        Editar Usuario
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/admin/users/manage/${user.id}`} className="flex items-center">
-                        <Eye className="mr-2 h-4 w-4" />
-                        Ver Detalles
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem 
-                          onSelect={(e) => e.preventDefault()}
-                          className="flex items-center text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Desactivar Usuario
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción desactivará al usuario "{user.name}". 
-                            Esta es una acción simulada y los cambios no persisten.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeactivateUser(user.id, user.name)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                {isSupervisor ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/admin/users/view/${user.id}`} className="flex items-center">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver Detalles
+                    </Link>
+                  </Button>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menú</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/users/manage/${user.id}`} className="flex items-center">
+                          <Edit3 className="mr-2 h-4 w-4" />
+                          Editar Usuario
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/users/manage/${user.id}`} className="flex items-center">
+                          <Eye className="mr-2 h-4 w-4" />
+                          Ver Detalles
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem 
+                            onSelect={(e) => e.preventDefault()}
+                            className="flex items-center text-destructive focus:text-destructive"
                           >
-                            Desactivar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Desactivar Usuario
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción desactivará al usuario "{user.name}". 
+                              Esta es una acción simulada y los cambios no persisten.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeactivateUser(user.id, user.name)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Desactivar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </TableCell>
             </TableRow>
           ))}

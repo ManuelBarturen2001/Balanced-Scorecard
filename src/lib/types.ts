@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 
 // Nuevo sistema de roles
-export type UserRole = 'responsable' | 'calificador' | 'asignador' | 'admin';
+export type UserRole = 'responsable' | 'calificador' | 'asignador' | 'admin' | 'supervisor';
 export type RoleType = 'variante' | 'unico';
 
 export interface User {

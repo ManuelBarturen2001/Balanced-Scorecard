@@ -38,6 +38,7 @@ const statusIcons: Record<VerificationStatus, React.ElementType> = {
   Approved: CheckCircle,
   Rejected: AlertCircle,
   Overdue: AlertCircle,
+  Observed: AlertCircle,
 };
 
 const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -46,6 +47,7 @@ const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "de
     Approved: "default", 
     Rejected: "destructive",
     Overdue: "destructive",
+    Observed: "secondary",
 };
 
 const statusColorClasses: Record<VerificationStatus, string> = {
@@ -54,6 +56,7 @@ const statusColorClasses: Record<VerificationStatus, string> = {
     Approved: "bg-green-100 text-green-800 border-green-300",
     Rejected: "bg-red-100 text-red-800 border-red-300",
     Overdue: "bg-orange-100 text-orange-800 border-orange-300",
+    Observed: "bg-amber-100 text-amber-800 border-amber-300",
 };
 
 export function UserVerificationMethodItem({ assignedIndicatorId, verificationMethod, onFileUpload }: UserVerificationMethodItemProps) {
@@ -134,6 +137,7 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
     if (statuses.some(s => s === 'Rejected')) return 'Rejected';
     if (statuses.every(s => s === 'Approved')) return 'Approved';
     if (statuses.some(s => s === 'Submitted')) return 'Submitted';
+    if (statuses.some(s => s === 'Observed')) return 'Observed';
     const hasPendingOrOverdue = statuses.some(s => s === 'Pending' || s === 'Overdue');
     if (hasPendingOrOverdue && !statuses.some(s => s === 'Submitted')) return 'Pending';
     return 'Pending';
@@ -292,8 +296,8 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
     }
   };
 
-  const canUpload = ['Pending', 'Overdue', 'Rejected'].includes(currentStatus) && !localMethod.submittedFile;
-  const canEdit = ['Pending'].includes(currentStatus) && localMethod.submittedFile;
+  const canUpload = ['Pending', 'Overdue', 'Rejected', 'Observed'].includes(currentStatus) && !localMethod.submittedFile;
+  const canEdit = ['Pending', 'Observed'].includes(currentStatus) && localMethod.submittedFile;
 
   return (
     <div className="p-3 border border-border rounded-md bg-card/50 shadow-sm hover:bg-muted/20 transition-colors">

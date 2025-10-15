@@ -51,6 +51,7 @@ const statusColors = {
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
   Overdue: 'bg-orange-100 text-orange-800',
+  Observed: 'bg-amber-100 text-amber-800',
 };
 
 const statusTranslations = {
@@ -59,6 +60,7 @@ const statusTranslations = {
   Approved: 'Aprobado',
   Rejected: 'Rechazado',
   Overdue: 'Vencido',
+  Observed: 'Observado',
 };
 
 export default function SupervisorDashboard() {
@@ -136,9 +138,9 @@ export default function SupervisorDashboard() {
     // Evaluar vencimiento por métodos pendientes
     const overdue = assignment.assignedVerificationMethods?.some(vm => {
       const due = parseDate((vm as any).dueDate);
-      return vm.status === 'Pending' && due && isPast(due);
+      return (vm.status === 'Pending' || vm.status === 'Observed') && due && isPast(due);
     });
-    return overdue ? 'Overdue' : 'Pending';
+    return overdue ? 'Overdue' : (base === 'Observed' ? 'Observed' : 'Pending');
   };
 
   useEffect(() => {

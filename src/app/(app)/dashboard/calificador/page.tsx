@@ -34,6 +34,7 @@ const statusColors = {
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
   Overdue: 'bg-orange-100 text-orange-800',
+  Observed: 'bg-amber-100 text-amber-800',
 };
 
 const statusTranslations = {
@@ -42,6 +43,7 @@ const statusTranslations = {
   Approved: 'Aprobado',
   Rejected: 'Rechazado',
   Overdue: 'Vencido',
+  Observed: 'Observado',
 };
 
 export default function CalificadorDashboard() {
@@ -100,9 +102,9 @@ export default function CalificadorDashboard() {
     if (base === 'Approved' || base === 'Rejected' || base === 'Submitted') return base;
     const overdue = a.assignedVerificationMethods?.some(vm => {
       const due = parseDate((vm as any).dueDate);
-      return vm.status === 'Pending' && due && isPast(due);
+      return (vm.status === 'Pending' || vm.status === 'Observed') && due && isPast(due);
     });
-    return overdue ? 'Overdue' : 'Pending';
+    return overdue ? 'Overdue' : (base === 'Observed' ? 'Observed' : 'Pending');
   };
 
   const normalized = assignments.map(a => ({

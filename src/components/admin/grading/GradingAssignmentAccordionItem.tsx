@@ -33,6 +33,7 @@ const statusIcons: Record<VerificationStatus, React.ElementType> = {
   Approved: CheckCircle,
   Rejected: AlertCircle,
   Overdue: AlertCircle,
+  Observed: AlertCircle,
 };
 
 const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -41,6 +42,7 @@ const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "de
     Approved: "default", 
     Rejected: "destructive",
     Overdue: "destructive",
+    Observed: "secondary",
 };
 
 const statusColorClasses: Record<VerificationStatus, string> = {
@@ -49,6 +51,7 @@ const statusColorClasses: Record<VerificationStatus, string> = {
     Approved: "bg-green-100 text-green-800 border-green-300",
     Rejected: "bg-red-100 text-red-800 border-red-300",
     Overdue: "bg-orange-100 text-orange-800 border-orange-300",
+    Observed: "bg-amber-100 text-amber-800 border-amber-300",
 };
 
 export function GradingAssignmentAccordionItem({ assignment, indicator, indicatorName, userName, onUpdate, currentUser }: GradingAssignmentAccordionItemProps) {
@@ -83,8 +86,8 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
     if (statuses.some(s => s === 'Rejected')) return 'Rejected';
     if (statuses.every(s => s === 'Approved')) return 'Approved';
     if (statuses.some(s => s === 'Submitted')) return 'Submitted';
-    const hasPendingOrOverdue = statuses.some(s => s === 'Pending' || s === 'Overdue');
-    if (hasPendingOrOverdue && !statuses.some(s => s === 'Submitted')) return 'Pending';
+    const hasPendingOrOverdueOrObserved = statuses.some(s => s === 'Pending' || s === 'Overdue' || s === 'Observed');
+    if (hasPendingOrOverdueOrObserved && !statuses.some(s => s === 'Submitted')) return statuses.includes('Observed') ? 'Observed' : 'Pending';
     return 'Pending';
   };
 
@@ -164,7 +167,7 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
   
   let overallStatus = assignment.overallStatus || 'Pending';
   //@ts-ignore
-  if (overallStatus === 'Pending' && assignment.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && vm.status === 'Pending')) {
+  if ((overallStatus === 'Pending' || overallStatus === 'Observed') && assignment.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && (vm.status === 'Pending' || vm.status === 'Observed'))) {
       overallStatus = 'Overdue';
   }
   const OverallStatusIcon = statusIcons[overallStatus] || Info;
@@ -310,7 +313,7 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
                                     <SelectItem value="Submitted" className="text-xs">{statusTranslations.Submitted} (En Revisión)</SelectItem>
                                     <SelectItem value="Approved" className="text-xs">{statusTranslations.Approved}</SelectItem>
                                     <SelectItem value="Rejected" className="text-xs">{statusTranslations.Rejected}</SelectItem>
-                                    <SelectItem value="Pending" className="text-xs">{statusTranslations.Pending} (Reabrir)</SelectItem>
+                                    <SelectItem value="Observed" className="text-xs">{statusTranslations.Observed}</SelectItem>
                                 </SelectContent>
                                 </Select>
                             </div>

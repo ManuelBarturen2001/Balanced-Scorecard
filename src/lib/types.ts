@@ -88,7 +88,7 @@ export interface Perspective {
   icon?: LucideIcon;
 }
 
-export type VerificationStatus = 'Pending' | 'Submitted' | 'Approved' | 'Rejected' | 'Overdue';
+export type VerificationStatus = 'Pending' | 'Submitted' | 'Approved' | 'Rejected' | 'Overdue' | 'Observed';
 
 export interface VerificationMethod {
   name: string;
@@ -142,4 +142,5 @@ export const statusTranslations: Record<VerificationStatus, string> = {
   Approved: "Aprobado",
   Rejected: "Rechazado",
   Overdue: "Vencido",
+  Observed: "Observado",
 };

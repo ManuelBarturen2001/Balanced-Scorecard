@@ -26,6 +26,7 @@ const statusIconsModal: Record<VerificationStatus, React.ElementType> = {
   Approved: CheckCircle,
   Rejected: AlertCircle,
   Overdue: AlertCircle,
+  Observed: AlertCircle,
 };
 
 const statusVariantMapModal: Record<VerificationStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -34,6 +35,7 @@ const statusVariantMapModal: Record<VerificationStatus, "default" | "secondary" 
     Approved: "default", 
     Rejected: "destructive",
     Overdue: "destructive",
+    Observed: "secondary",
 };
 
 const statusColorClassesModal: Record<VerificationStatus, string> = {
@@ -42,6 +44,7 @@ const statusColorClassesModal: Record<VerificationStatus, string> = {
     Approved: "bg-green-100 text-green-800 border-green-300",
     Rejected: "bg-red-100 text-red-800 border-red-300",
     Overdue: "bg-orange-100 text-orange-800 border-orange-300",
+    Observed: "bg-amber-100 text-amber-800 border-amber-300",
 };
 
 export function AssignmentDetailsModal({ indicator, isOpen, onClose }: AssignmentDetailsModalProps) {
@@ -109,10 +112,10 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
 
   let overallStatus = indicator.overallStatus || 'Pending';
   if (
-    overallStatus === 'Pending' &&
+    (overallStatus === 'Pending' || overallStatus === 'Observed') &&
     indicator.assignedVerificationMethods.some(vm => {
       const due = parseDate(vm.dueDate);
-      return vm.status === 'Pending' && due && isPast(due);
+      return (vm.status === 'Pending' || vm.status === 'Observed') && due && isPast(due);
     })
   ) {
     overallStatus = 'Overdue';
@@ -165,7 +168,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
             {indicator.assignedVerificationMethods.map((vm,index) => {
               let currentVmStatus = vm.status;
               //@ts-ignore
-              if (vm.status === 'Pending') {
+              if (vm.status === 'Pending' || vm.status === 'Observed') {
                 const due = parseDate(vm.dueDate);
                 if (due && isPast(due)) {
                 currentVmStatus = 'Overdue';

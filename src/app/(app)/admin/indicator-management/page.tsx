@@ -10,7 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Clock, Layers } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Layers, Search, Filter, Gauge, CalendarClock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Helper to safely parse different date formats that may appear in Firestore/strings
 function parseDate(date: any): Date | null {
@@ -44,6 +46,8 @@ export default function IndicatorManagementPage() {
   const [perspectives, setPerspectives] = useState<Perspective[]>([]);
   const [indicators, setIndicators] = useState<Record<string, Indicator>>({});
   const [assignments, setAssignments] = useState<AssignedIndicator[]>([]);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "green" | "yellow" | "red">("all");
 
   // Access control: only admin and supervisor
   useEffect(() => {
@@ -92,6 +96,29 @@ export default function IndicatorManagementPage() {
     return group;
   }, [assignments]);
 
+  const kpis = useMemo(() => {
+    let totalAssignments = 0;
+    let completed = 0; // all methods complete
+    let pending = 0; // has pending but not overdue
+    let overdue = 0; // has pending and overdue
+
+    for (const a of assignments) {
+      totalAssignments += 1;
+      const methods = a.assignedVerificationMethods || [];
+      const hasPending = methods.some((m) => m.status === "Pending");
+      const hasOverdue = methods.some((m) => m.status === "Pending" && (() => {
+        const d = parseDate((m as any).dueDate);
+        return d ? isPast(d) : false;
+      })());
+      if (!hasPending) completed += 1;
+      else if (hasOverdue) overdue += 1;
+      else pending += 1;
+    }
+
+    const completionRate = totalAssignments > 0 ? Math.round((completed / totalAssignments) * 100) : 0;
+    return { totalAssignments, completed, pending, overdue, completionRate };
+  }, [assignments]);
+
   const aggregateForIndicator = (list: AssignedIndicator[], indicatorId: string): AggregatedIndicator => {
     const indicatorName = indicators[indicatorId]?.name || "Indicador";
 
@@ -137,21 +164,98 @@ export default function IndicatorManagementPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header + KPIs */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card className="border-border xl:col-span-3">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-col md:flex-row">
+              <div className="flex items-center gap-2">
+                <Layers className="h-6 w-6" />
+                <CardTitle className="font-headline text-2xl">Gestión de Indicadores</CardTitle>
+              </div>
+              <div className="w-full md:w-80 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar indicador..."
+                  className="pl-9"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <CardDescription>
+              Seguimiento del cumplimiento de entrega por parte de los responsables, agrupado por perspectiva e indicador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-lg border bg-card">
+              <div className="text-xs text-muted-foreground">Total asignaciones</div>
+              <div className="text-2xl font-bold">{kpis.totalAssignments}</div>
+            </div>
+            <div className="p-4 rounded-lg border bg-card">
+              <div className="text-xs text-muted-foreground">Completadas</div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <div className="text-2xl font-bold">{kpis.completed}</div>
+              </div>
+            </div>
+            <div className="p-4 rounded-lg border bg-card">
+              <div className="text-xs text-muted-foreground">Pendientes</div>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-600" />
+                <div className="text-2xl font-bold">{kpis.pending}</div>
+              </div>
+            </div>
+            <div className="p-4 rounded-lg border bg-card">
+              <div className="text-xs text-muted-foreground">Vencidas</div>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <div className="text-2xl font-bold">{kpis.overdue}</div>
+              </div>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4">
+              <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+                <Gauge className="h-4 w-4" />
+                Tasa global de completitud: {kpis.completionRate}%
+              </div>
+              <Progress value={kpis.completionRate} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
       <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl flex items-center gap-2">
-            <Layers className="h-6 w-6" /> Gestión de Indicadores
-          </CardTitle>
-          <CardDescription>
-            Seguimiento del cumplimiento de entrega por parte de los responsables, agrupado por perspectiva e indicador.
-          </CardDescription>
+        <CardHeader className="py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Filter className="h-4 w-4" />
+            Filtrar por estado
+          </div>
         </CardHeader>
+        <CardContent className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setStatusFilter("all")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "all" ? "bg-accent" : "bg-background"}`}>Todos</button>
+          <button onClick={() => setStatusFilter("green")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "green" ? "bg-accent" : "bg-background"}`}>
+            <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Verdes</span>
+          </button>
+          <button onClick={() => setStatusFilter("yellow")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "yellow" ? "bg-accent" : "bg-background"}`}>
+            <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="h-4 w-4" /> Amarillos</span>
+          </button>
+          <button onClick={() => setStatusFilter("red")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "red" ? "bg-accent" : "bg-background"}`}>
+            <span className="inline-flex items-center gap-1 text-red-700"><AlertCircle className="h-4 w-4" /> Rojos</span>
+          </button>
+        </CardContent>
       </Card>
 
       <Accordion type="single" collapsible className="w-full">
         {perspectives.map((p) => {
           const indicatorsById = byPerspective[p.id] || {};
-          const indicatorIds = Object.keys(indicatorsById);
+          const indicatorIds = Object.keys(indicatorsById)
+            .filter((indId) => {
+              // text search on indicator name
+              const name = indicators[indId]?.name || "";
+              if (query && !name.toLowerCase().includes(query.toLowerCase())) return false;
+              return true;
+            });
 
           return (
             <AccordionItem key={p.id} value={p.id}>
@@ -188,29 +292,60 @@ export default function IndicatorManagementPage() {
                         );
                       }
 
+                      // status filter
+                      const statusKey = agg.hasOverduePending ? "red" : agg.hasPending ? "yellow" : "green";
+                      if (statusFilter !== "all" && statusFilter !== statusKey) return null;
+
                       return (
-                        <Card key={indId} className="border-border">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-base font-semibold">
-                              {indicators[indId]?.name || "Indicador"}
-                            </CardTitle>
-                            <CardDescription>
-                              {agg.completedAssignments}/{agg.totalAssignments} completados
-                            </CardDescription>
+                        <Card key={indId} className="border-border hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <CardTitle className="text-base font-semibold">
+                                  {indicators[indId]?.name || "Indicador"}
+                                </CardTitle>
+                                <CardDescription>
+                                  {agg.completedAssignments}/{agg.totalAssignments} completados
+                                </CardDescription>
+                              </div>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      className={`${statusKey === "red" ? "bg-red-100 text-red-700" : statusKey === "yellow" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}
+                                    >
+                                      {statusKey === "red" ? "Rojo" : statusKey === "yellow" ? "Amarillo" : "Verde"}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left">
+                                    {statusKey === "red" ? "Vencido con pendientes" : statusKey === "yellow" ? "Pendiente antes del vencimiento" : "Completado"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-2">
-                              <div className="relative">
+                            <div className="space-y-3">
+                              <div className="relative overflow-hidden rounded-full border">
                                 <Progress value={percent} className="h-3 bg-muted" />
-                                {/* Overlay a color bar to express the state visually */}
                                 <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-                                  <div className={`${colorClass} h-full`} style={{ width: `${percent}%` }} />
+                                  <div className={`${colorClass} h-full`} style={{ width: `${percent}%`}} />
                                 </div>
                               </div>
                               <div className="flex items-center justify-between text-sm text-muted-foreground">
                                 <span>{percent}%</span>
                                 {legend}
                               </div>
+                              {indicators[indId]?.moreInformationLink ? (
+                                <a
+                                  href={indicators[indId]?.moreInformationLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs underline text-primary"
+                                >
+                                  Ver más información
+                                </a>
+                              ) : null}
                             </div>
                           </CardContent>
                         </Card>

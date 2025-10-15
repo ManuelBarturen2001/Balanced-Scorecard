@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Verificar que el estado permite subir archivos
     console.log('🔍 Checking status. Current:', verificationMethod.status);
     
-    if (!['Pending', 'Overdue', 'Submitted'].includes(verificationMethod.status)) {
+    if (!['Pending', 'Overdue', 'Submitted', 'Observed'].includes(verificationMethod.status)) {
       console.error('❌ Status does not allow uploads:', verificationMethod.status);
       return NextResponse.json(
         { error: 'No se pueden subir archivos en el estado actual' },
@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
       if (statuses.some(s => s === 'Rejected')) return 'Rejected';
       if (statuses.every(s => s === 'Approved')) return 'Approved';
       if (statuses.some(s => s === 'Submitted')) return 'Submitted';
+      if (statuses.some(s => s === 'Observed')) return 'Observed';
       return 'Pending';
     };
 

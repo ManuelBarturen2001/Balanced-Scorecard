@@ -32,6 +32,7 @@ export default function AssignerManagementPage() {
   const [schools, setSchools] = useState<ProfessionalSchool[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
   // Cargar catálogos para los selects
   useEffect(() => {
     setFaculties(getAllFaculties());
@@ -61,9 +62,13 @@ export default function AssignerManagementPage() {
     switch (status?.toLowerCase()) {
       case 'completed':
       case 'completado':
+      case 'approved':
+      case 'aprobado':
         return 'secondary';
       case 'in progress':
       case 'en progreso':
+      case 'submitted':
+      case 'presentado':
         return 'default';
       case 'pending':
       case 'pendiente':
@@ -71,8 +76,38 @@ export default function AssignerManagementPage() {
       case 'overdue':
       case 'vencido':
         return 'destructive';
+      case 'rejected':
+      case 'rechazado':
+        return 'destructive';
+      case 'observed':
+      case 'observado':
+        return 'outline';
       default:
         return 'outline';
+    }
+  };
+
+  // Función para traducir estados al español
+  const translateStatus = (status: string): string => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return 'Pendiente';
+      case 'submitted':
+        return 'Presentado';
+      case 'approved':
+        return 'Aprobado';
+      case 'rejected':
+        return 'Rechazado';
+      case 'overdue':
+        return 'Vencido';
+      case 'observed':
+        return 'Observado';
+      case 'completed':
+        return 'Completado';
+      case 'in progress':
+        return 'En Progreso';
+      default:
+        return status || 'Pendiente';
     }
   };
 
@@ -99,43 +134,64 @@ export default function AssignerManagementPage() {
   }, [search, faculty, office, assigners]);
 
   const handleViewDetails = async (assigner: User) => {
+    // Cerrar modal anterior inmediatamente y limpiar datos
+    setModalOpen(false);
+    setSelectedAssigner(null);
+    setAssignments([]);
+    setFilteredAssignments([]);
+    setLoadingAssignments(true);
+    
+    // Pequeña pausa para que se vea el cambio
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Abrir modal con nuevo asignador
     setSelectedAssigner(assigner);
     setModalOpen(true);
-    // Obtener todas las asignaciones y filtrar por asignador
-    const allAssigned: AssignedIndicator[] = await getAllAssignedIndicators();
-    // Si tienes el campo assignerId, usa esto:
-    // const filtered = allAssigned.filter(a => a.assignerId === assigner.id);
-    // Si NO tienes assignerId, no se puede saber a quién asignó cada asignador, a menos que lo agregues en el futuro.
-    // Por ahora, simulemos que el campo existe o muestra todas las asignaciones (debes agregar assignerId en el futuro para trazabilidad real).
-    const filtered = allAssigned.filter(a => (a as any).assignerId === assigner.id);
-    // Obtener datos reales de responsables, perspectiva y facultad
-    const mapped = await Promise.all(filtered.map(async (a) => {
-      const responsable = await getUserById(a.userId);
-      const perspective = a.perspectiveId ? await getPerspectiveById(a.perspectiveId) : undefined;
-      const faculty = responsable?.facultyId ? getFacultyById(responsable.facultyId) : undefined;
-      const school = responsable?.professionalSchoolId ? schools.find(s => s.id === responsable.professionalSchoolId) : undefined;
-      const office = responsable?.officeId ? offices.find(o => o.id === responsable.officeId) : undefined;
-      // Mostrar nombres de jurados
-      let juradoNombres = '-';
-      if (a.jury && a.jury.length > 0) {
-        juradoNombres = a.jury.map((jid: string) => {
-          const jurado = users.find(u => u.id === jid);
-          return jurado ? jurado.name : jid;
-        }).join(', ');
-      }
-      return {
-        responsableName: responsable?.name || 'Nombre no disponible',
-        perspective: perspective?.name || 'No especificado',
-        faculty: faculty?.name || 'No tiene facultad',
-        school: school?.name || '-',
-        office: office?.name || 'No tiene oficina',
-        jurado: juradoNombres,
-        dueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString() : '-',
-        status: a.overallStatus || 'Pendiente',
-      };
-    }));
-    setAssignments(mapped);
-    setFilteredAssignments(mapped);
+    
+    try {
+      // Obtener todas las asignaciones y filtrar por asignador
+      const allAssigned: AssignedIndicator[] = await getAllAssignedIndicators();
+      const filtered = allAssigned.filter(a => (a as any).assignerId === assigner.id);
+      
+      // Obtener datos reales de responsables, perspectiva y facultad
+      const mapped = await Promise.all(filtered.map(async (a) => {
+        const responsable = await getUserById(a.userId);
+        const perspective = a.perspectiveId ? await getPerspectiveById(a.perspectiveId) : undefined;
+        const faculty = responsable?.facultyId ? getFacultyById(responsable.facultyId) : undefined;
+        const school = responsable?.professionalSchoolId ? schools.find(s => s.id === responsable.professionalSchoolId) : undefined;
+        const office = responsable?.officeId ? offices.find(o => o.id === responsable.officeId) : undefined;
+        
+        // Mostrar nombres de jurados
+        let juradoNombres = '-';
+        if (a.jury && a.jury.length > 0) {
+          juradoNombres = a.jury.map((jid: string) => {
+            const jurado = users.find(u => u.id === jid);
+            return jurado ? jurado.name : jid;
+          }).join(', ');
+        }
+        
+        return {
+          responsableName: responsable?.name || 'Nombre no disponible',
+          perspective: perspective?.name || 'No especificado',
+          faculty: faculty?.name || 'No tiene facultad',
+          school: school?.name || '-',
+          office: office?.name || 'No tiene oficina',
+          jurado: juradoNombres,
+          assignmentDate: a.assignedDate ? formatDate(a.assignedDate.toString()) : '-',
+          dueDate: a.dueDate ? formatDate(a.dueDate.toString()) : '-',
+          status: a.overallStatus || 'Pending',
+        };
+      }));
+      
+      setAssignments(mapped);
+      setFilteredAssignments(mapped);
+    } catch (error) {
+      console.error('Error al cargar asignaciones:', error);
+      setAssignments([]);
+      setFilteredAssignments([]);
+    } finally {
+      setLoadingAssignments(false);
+    }
   };
 
   // Filtros en el modal
@@ -315,42 +371,55 @@ export default function AssignerManagementPage() {
 
           <div className="flex-1 overflow-hidden rounded-md border bg-background">
             <div className="overflow-y-auto h-full">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-muted sticky top-0">
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Responsable</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Perspectiva</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Facultad</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Oficina</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Jurado</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha de Vencimiento</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredAssignments.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-                        No se encontraron asignaciones con los filtros seleccionados.
-                      </td>
+              {loadingAssignments ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    Cargando asignaciones...
+                  </div>
+                </div>
+              ) : (
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-muted sticky top-0">
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Responsable</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Perspectiva</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Facultad</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Oficina</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Jurado</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha de Asignación</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha de Vencimiento</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Estado</th>
                     </tr>
-                  ) : (
-                    filteredAssignments.map((asig, idx) => (
-                      <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">{asig.responsableName}</td>
-                        <td className="px-4 py-3">{asig.perspective}</td>
-                        <td className="px-4 py-3">{asig.faculty || 'No tiene facultad'}</td>
-                        <td className="px-4 py-3">{asig.office || 'No tiene oficina'}</td>
-                        <td className="px-4 py-3 max-w-[200px] truncate" title={asig.jurado}>{asig.jurado}</td>
-                        <td className="px-4 py-3">{asig.dueDate ? formatDate(asig.dueDate) : '-'}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={getStatusVariant(asig.status)}>{asig.status}</Badge>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredAssignments.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
+                          No se encontraron asignaciones con los filtros seleccionados.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredAssignments.map((asig, idx) => (
+                        <tr key={idx} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-4 py-3 font-medium">{asig.responsableName}</td>
+                          <td className="px-4 py-3">{asig.perspective}</td>
+                          <td className="px-4 py-3">{asig.faculty || 'No tiene facultad'}</td>
+                          <td className="px-4 py-3">{asig.office || 'No tiene oficina'}</td>
+                          <td className="px-4 py-3 max-w-[200px] truncate" title={asig.jurado}>{asig.jurado}</td>
+                          <td className="px-4 py-3">{asig.assignmentDate}</td>
+                          <td className="px-4 py-3">{asig.dueDate}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={getStatusVariant(asig.status)}>
+                              {translateStatus(asig.status)}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </DialogContent>

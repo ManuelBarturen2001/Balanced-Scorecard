@@ -27,6 +27,7 @@ const statusIcons: Record<VerificationStatus, React.ElementType> = {
   Approved: CheckCircle,
   Rejected: AlertCircle,
   Overdue: AlertCircle,
+  Observed: AlertCircle,
 };
 
 const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -35,6 +36,7 @@ const statusVariantMap: Record<VerificationStatus, "default" | "secondary" | "de
     Approved: "default", 
     Rejected: "destructive",
     Overdue: "destructive",
+    Observed: "secondary",
 };
 
 const statusColorClasses: Record<VerificationStatus, string> = {
@@ -43,6 +45,7 @@ const statusColorClasses: Record<VerificationStatus, string> = {
     Approved: "bg-green-100 text-green-800 border-green-300",
     Rejected: "bg-red-100 text-red-800 border-red-300",
     Overdue: "bg-orange-100 text-orange-800 border-orange-300",
+    Observed: "bg-amber-100 text-amber-800 border-amber-300",
 };
 
 export function VerificationMethodItem({ 

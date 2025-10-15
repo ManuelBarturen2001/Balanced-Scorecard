@@ -204,7 +204,7 @@ export default function IndicatorManagementPage() {
                                 <Progress value={percent} className="h-3 bg-muted" />
                                 {/* Overlay a color bar to express the state visually */}
                                 <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-                                  <div className={`${colorClass} h-full`} style={{ width: `${percent}%`, opacity: 0.3 }} />
+                                  <div className={`${colorClass} h-full`} style={{ width: `${percent}%` }} />
                                 </div>
                               </div>
                               <div className="flex items-center justify-between text-sm text-muted-foreground">

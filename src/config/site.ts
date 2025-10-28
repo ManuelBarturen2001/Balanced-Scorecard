@@ -44,6 +44,12 @@ export const navItems: NavItemConfig[] = [
   }
   ,
   {
+    title: 'Gestión de Calificadores',
+    href: '/admin/graders',
+    icon: Users,
+    adminOnly: true,
+  },
+  {
     title: 'Gestión de Asignadores',
     href: '/admin/assigners',
     icon: Users,

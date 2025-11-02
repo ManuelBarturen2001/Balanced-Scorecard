@@ -38,22 +38,25 @@ const statusIcons: Record<VerificationStatus, React.ElementType> = {
   Approved: CheckCircle,
   Rejected: AlertCircle,
   Overdue: AlertCircle,
+  Observed: AlertCircle
 };
 
-const statusColors = {
+const statusColors: Record<VerificationStatus, string> = {
   Pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   Submitted: 'bg-blue-100 text-blue-800 border-blue-300',
   Approved: 'bg-green-100 text-green-800 border-green-300',
   Rejected: 'bg-red-100 text-red-800 border-red-300',
   Overdue: 'bg-orange-100 text-orange-800 border-orange-300',
+  Observed: 'bg-purple-100 text-purple-800 border-purple-300'
 };
 
-const statusTranslations = {
+const statusTranslations: Record<VerificationStatus, string> = {
   Pending: 'Pendiente',
   Submitted: 'Presentado',
   Approved: 'Aprobado',
   Rejected: 'Rechazado',
   Overdue: 'Vencido',
+  Observed: 'Observado'
 };
 
 export function UserAssignmentDetails({ assignment, onBack, onFileUpload }: UserAssignmentDetailsProps) {
@@ -107,38 +110,31 @@ export function UserAssignmentDetails({ assignment, onBack, onFileUpload }: User
     return assignment.assignedVerificationMethods.find(method => method.name === methodName);
   };
 
-  const formatDate = (date: any, formatStr: string = 'dd/MM/yyyy'): string => {
+  const formatDate = (date: Date | string | number | { seconds: number; toDate?: () => Date } | null | undefined, formatStr: string = 'dd/MM/yyyy'): string => {
     if (!date) return 'Fecha no disponible';
     
     try {
       let dateObj: Date;
       
-      // Manejar diferentes tipos de fechas
-      if (date.seconds) {
-        // Firestore timestamp
-        dateObj = new Date(date.seconds * 1000);
-      } else if (date instanceof Date) {
+      if (date instanceof Date) {
         dateObj = date;
-      } else if (typeof date === 'object' && date.toDate) {
-        // Firestore Timestamp object
+      } else if (typeof date === 'object' && 'toDate' in date && date.toDate) {
         dateObj = date.toDate();
+      } else if (typeof date === 'object' && 'seconds' in date) {
+        dateObj = new Date(date.seconds * 1000);
       } else if (typeof date === 'number') {
-        // Timestamp numérico
         dateObj = new Date(date);
       } else if (typeof date === 'string') {
-        // String de fecha
         dateObj = new Date(date);
       } else {
-        // Intentar crear Date de cualquier otro valor
-        dateObj = new Date(date);
-      }
-      
-      // Verificar si la fecha es válida
-      if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {
         return 'Fecha no disponible';
       }
       
-      return format(dateObj, 'dd-MMM-yyyy', { locale: es });
+      if (isNaN(dateObj.getTime())) {
+        return 'Fecha no disponible';
+      }
+      
+      return format(dateObj, formatStr, { locale: es });
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'Fecha no disponible';
@@ -187,7 +183,7 @@ export function UserAssignmentDetails({ assignment, onBack, onFileUpload }: User
         
         {assignment.assignedVerificationMethods?.map((method, index) => {
           const StatusIcon = statusIcons[method.status] || Clock;
-          const isPending = method.status === 'Pending' || method.status === 'Overdue';
+          const isPending = method.status === 'Pending' || method.status === 'Overdue' || method.status === 'Observed' || method.status === 'Rejected';
           const hasFiles = method.submittedFile || (method.fileHistory && method.fileHistory.length > 0);
 
           return (

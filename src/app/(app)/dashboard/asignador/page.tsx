@@ -259,7 +259,7 @@ export default function AsignadorDashboard() {
       body: normalized.slice(0, 200).map(a => [
         a.id || '-',
         getStudentName(a.userId),
-        getPerspectiveName(a.perspectiveId),
+        getPerspectiveName(a.perspectiveId || ''),
         statusTranslations[a.derivedStatus || 'Pending'],
         a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
         a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
@@ -288,7 +288,7 @@ export default function AsignadorDashboard() {
     const rows = normalized.map(a => [
       a.id || '-',
       getStudentName(a.userId),
-      getPerspectiveName(a.perspectiveId),
+      getPerspectiveName(a.perspectiveId || ''),
       statusTranslations[a.derivedStatus || 'Pending'],
       a.assignedDateObj ? format(a.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-',
       a.dueDateObj ? format(a.dueDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'
@@ -442,7 +442,7 @@ export default function AsignadorDashboard() {
                           </div>
                           
                           <div className="space-y-1 text-sm text-muted-foreground">
-                            <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                            <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId || '')}</p>
                             <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                             <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
                             <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
@@ -508,7 +508,7 @@ export default function AsignadorDashboard() {
                                   </div>
                                   
                                   <div className="space-y-1 text-sm text-muted-foreground">
-                                    <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                                    <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId || '')}</p>
                                     <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                                     <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
                                     <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
@@ -572,7 +572,7 @@ export default function AsignadorDashboard() {
                             </div>
                             
                             <div className="space-y-1 text-sm text-muted-foreground">
-                              <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                              <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId || '')}</p>
                               <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                               <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
                               <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>
@@ -632,7 +632,7 @@ export default function AsignadorDashboard() {
                             </div>
                             
                             <div className="space-y-1 text-sm text-muted-foreground">
-                              <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId)}</p>
+                              <p><span className="font-medium">Perspectiva:</span> {getPerspectiveName(assignment.perspectiveId || '')}</p>
                               <p><span className="font-medium">{locationInfo.type}:</span> {locationInfo.value}</p>
                               <p><span className="font-medium">Jurado:</span> {getJuryNames(assignment.jury || [])}</p>
                               <p><span className="font-medium">Fecha de Vencimiento:</span> {formatDueDate(assignment.dueDate)}</p>

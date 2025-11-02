@@ -59,7 +59,7 @@ export function UserAssignmentCard({ assignedIndicator, onViewDetails, onFileUpl
       try {
         const [indicator, perspective] = await Promise.all([
           getIndicatorById(assignedIndicator.indicatorId),
-          getPerspectiveById(assignedIndicator.perspectiveId)
+          getPerspectiveById(assignedIndicator.perspectiveId || '')
         ]);
         setIndicatorInfo(indicator);
         setPerspectiveInfo(perspective);

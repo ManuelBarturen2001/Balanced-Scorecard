@@ -232,15 +232,20 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
     // Obtener la facultad del usuario seleccionado
     const selectedUser = usersToFilter.find(u => u.id === selectedUserId);
     const selectedUserFaculty = selectedUser?.facultyId;
-    
-    // Si el usuario seleccionado tiene facultad, filtrar calificadores por esa facultad
-    if (selectedUserFaculty) {
-      return usersToFilter.filter(u => 
-        u.role === 'calificador' && u.facultyId === selectedUserFaculty
-      );
+    const selectedUserOffice = selectedUser?.officeId;
+
+    // Priorizar filtrado por oficina: si el usuario asignado pertenece a una oficina,
+    // mostrar calificadores de la misma oficina (independientemente de la facultad)
+    if (selectedUserOffice) {
+      return usersToFilter.filter(u => u.role === 'calificador' && u.officeId === selectedUserOffice);
     }
-    
-    // Si no tiene facultad, mostrar todos los calificadores
+
+    // Si no hay oficina, pero sí facultad, filtrar por facultad
+    if (selectedUserFaculty) {
+      return usersToFilter.filter(u => u.role === 'calificador' && u.facultyId === selectedUserFaculty);
+    }
+
+    // Si no tiene ni oficina ni facultad, mostrar todos los calificadores
     return usersToFilter.filter(u => u.role === 'calificador');
   };
 
@@ -736,13 +741,23 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
                 <PlusCircle className="h-4 w-4" />
               </Button>
             </div>
-            {selectedUserId && (
-              <p className="text-xs text-muted-foreground">
-                Mostrando calificadores de la facultad del usuario seleccionado: {
-                  getFacultyName((propUsers || users)?.find(u => u.id === selectedUserId)?.facultyId || '')
-                }
-              </p>
-            )}
+            {selectedUserId && (() => {
+              const selected = (propUsers || users)?.find(u => u.id === selectedUserId);
+              const officeId = selected?.officeId;
+              const facultyId = selected?.facultyId;
+              if (officeId) {
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    Mostrando calificadores de la oficina del usuario seleccionado: {getOfficeName(officeId)}
+                  </p>
+                );
+              }
+              return (
+                <p className="text-xs text-muted-foreground">
+                  Mostrando calificadores de la facultad del usuario seleccionado: {getFacultyName(facultyId || '')}
+                </p>
+              );
+            })()}
           </div>
           
           {selectedJuryMembers.length > 0 && (

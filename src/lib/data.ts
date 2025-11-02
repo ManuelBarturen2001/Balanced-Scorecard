@@ -13,7 +13,7 @@ export const getAssignerAssignments = async (assignerId: string): Promise<Assign
 };
 import type { User, Indicator, Perspective, VerificationMethod, AssignedIndicator, AssignedVerificationMethod, VerificationStatus, Faculty, ProfessionalSchool, Office, MockFile } from '@/lib/types';
 import { Library, Target, FileCheck, Users, DollarSign, BarChart2, Briefcase, Lightbulb } from 'lucide-react';
-import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
+import { getCollectionWhereCondition, getCollectionById, getCollection, insertDocument, updateDocument, deleteDocument, getCollectionWhereMultipleConditions } from '@/lib/firebase-functions';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebase';
 
@@ -376,7 +376,32 @@ export const markUserAsExperienced = async (userId: string): Promise<void> => {
 };
 
 export const getAllAssignedIndicators = async (): Promise<AssignedIndicator[]> => {
-  return await getCollection<AssignedIndicator>('assigned_indicator');
+  try {
+    const assignments = await getCollection<AssignedIndicator>('assigned_indicator');
+    console.log('Todas las asignaciones recuperadas:', assignments);
+    
+    // Filtrar asignaciones inválidas
+    const validAssignments = assignments.filter(assignment => {
+      const isValid = 
+        assignment.id &&
+        assignment.indicatorId &&
+        assignment.userId &&
+        assignment.assignerId &&
+        Array.isArray(assignment.assignedVerificationMethods);
+      
+      if (!isValid) {
+        console.warn('Asignación inválida encontrada:', assignment);
+      }
+      
+      return isValid;
+    });
+
+    console.log('Asignaciones válidas:', validAssignments.length);
+    return validAssignments;
+  } catch (error) {
+    console.error('Error al obtener las asignaciones:', error);
+    throw error;
+  }
 };
 
 export const updateAssignedIndicator = async (assignedIndicatorId: string, updates: Partial<AssignedIndicator>): Promise<void> => {
@@ -384,6 +409,15 @@ export const updateAssignedIndicator = async (assignedIndicatorId: string, updat
     await updateDocument<AssignedIndicator>('assigned_indicator', assignedIndicatorId, updates);
   } catch (error) {
     console.error('Error updating assigned indicator:', error);
+    throw error;
+  }
+};
+
+export const deleteAssignedIndicator = async (assignedIndicatorId: string): Promise<void> => {
+  try {
+    await deleteDocument('assigned_indicator', assignedIndicatorId);
+  } catch (error) {
+    console.error('Error deleting assigned indicator:', error);
     throw error;
   }
 };

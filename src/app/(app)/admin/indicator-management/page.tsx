@@ -233,15 +233,51 @@ export default function IndicatorManagementPage() {
           </div>
         </CardHeader>
         <CardContent className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setStatusFilter("all")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "all" ? "bg-accent" : "bg-background"}`}>Todos</button>
-          <button onClick={() => setStatusFilter("green")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "green" ? "bg-accent" : "bg-background"}`}>
-            <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Verdes</span>
+          <button 
+            onClick={() => setStatusFilter("all")} 
+            className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+              statusFilter === "all" 
+                ? "border-primary bg-primary/10 text-primary" 
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            Todos
           </button>
-          <button onClick={() => setStatusFilter("yellow")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "yellow" ? "bg-accent" : "bg-background"}`}>
-            <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="h-4 w-4" /> Amarillos</span>
+          <button 
+            onClick={() => setStatusFilter("green")} 
+            className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+              statusFilter === "green" 
+                ? "border-emerald-500 bg-emerald-50 text-emerald-700" 
+                : "border-border hover:border-emerald-500/50"
+            }`}
+          >
+            <span className="inline-flex items-center gap-1">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Verdes
+            </span>
           </button>
-          <button onClick={() => setStatusFilter("red")} className={`px-3 py-1.5 rounded-md border text-sm ${statusFilter === "red" ? "bg-accent" : "bg-background"}`}>
-            <span className="inline-flex items-center gap-1 text-red-700"><AlertCircle className="h-4 w-4" /> Rojos</span>
+          <button 
+            onClick={() => setStatusFilter("yellow")} 
+            className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+              statusFilter === "yellow" 
+                ? "border-amber-500 bg-amber-50 text-amber-700" 
+                : "border-border hover:border-amber-500/50"
+            }`}
+          >
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-4 w-4 text-amber-500" /> Amarillos
+            </span>
+          </button>
+          <button 
+            onClick={() => setStatusFilter("red")} 
+            className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+              statusFilter === "red" 
+                ? "border-red-500 bg-red-50 text-red-700" 
+                : "border-border hover:border-red-500/50"
+            }`}
+          >
+            <span className="inline-flex items-center gap-1">
+              <AlertCircle className="h-4 w-4 text-red-500" /> Rojos
+            </span>
           </button>
         </CardContent>
       </Card>
@@ -325,15 +361,12 @@ export default function IndicatorManagementPage() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-3">
-                              <div className="relative overflow-hidden rounded-full border">
-                                <Progress value={percent} className="h-3 bg-muted" />
-                                <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-                                  <div className={`${colorClass} h-full`} style={{ width: `${percent}%`}} />
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                <span>{percent}%</span>
+                              <div className="space-y-3">
+                              {/* Solid color bar: full width colored according to aggregated status (red/yellow/green) */}
+                              <div className={`w-full h-3 rounded-full border ${
+                                agg.hasOverduePending ? 'bg-[#EF4444]' : agg.hasPending ? 'bg-[#F59E0B]' : 'bg-[#10B981]'
+                              }`} />
+                              <div className="flex items-center justify-end text-sm text-muted-foreground">
                                 {legend}
                               </div>
                               {indicators[indId]?.moreInformationLink ? (

@@ -79,7 +79,7 @@ export default function AdminDashboard() {
   const [compactFacultyFilter, setCompactFacultyFilter] = useState<string>('all');
   const [compactSchoolFilter, setCompactSchoolFilter] = useState<string>('all');
   const [compactOfficeFilter, setCompactOfficeFilter] = useState<string>('all');
-  const [compactDateFilter, setCompactDateFilter] = useState<'today' | 'week' | 'month'>('week');
+  const [compactDateFilter, setCompactDateFilter] = useState<'today' | 'week' | 'month'>('month');
   
   // Filtros para Vista Detallada
   const [detailedFacultyFilter, setDetailedFacultyFilter] = useState<string>('all');
@@ -213,19 +213,38 @@ export default function AdminDashboard() {
 
   // Función auxiliar para filtrar por fecha compacta
   const filterByCompactDate = (assignment: any, dateFilter: 'today' | 'week' | 'month') => {
-    const assignmentDate = assignment.assignedDateObj;
-    if (!assignmentDate) return false;
+    // Si no hay fecha de asignación, incluir la asignación
+    if (!assignment || !assignment.assignedDateObj) return true;
     
     const now = new Date();
-    switch (dateFilter) {
-      case 'today':
-        return isToday(assignmentDate);
-      case 'week':
-        return isWithinInterval(assignmentDate, { start: subWeeks(now, 1), end: now });
-      case 'month':
-        return isWithinInterval(assignmentDate, { start: subMonths(now, 1), end: now });
-      default:
-        return true;
+    const assignmentDate = assignment.assignedDateObj;
+    
+    try {
+      switch (dateFilter) {
+        case 'today':
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+          return assignmentDate >= todayStart && assignmentDate <= todayEnd;
+        
+        case 'week':
+          // Considerar la última semana
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - 7);
+          return assignmentDate >= weekStart && assignmentDate <= now;
+        
+        case 'month':
+          // Considerar el último mes
+          const monthStart = new Date(now);
+          monthStart.setMonth(now.getMonth() - 1);
+          return assignmentDate >= monthStart && assignmentDate <= now;
+        
+        default:
+          return true;
+      }
+    } catch (error) {
+      // Si hay algún error al procesar las fechas, incluir la asignación
+      console.error('Error processing date filter:', error);
+      return true;
     }
   };
 
@@ -243,16 +262,41 @@ export default function AdminDashboard() {
 
   // Filtrar datos según vista actual (Compacto o Detallado)
   const getFilteredAssignments = () => {
-    if (viewMode === 'compact') {
-      return normalizedAssignments.filter(assignment => 
-        filterByEntity(assignment, compactFacultyFilter, compactSchoolFilter, compactOfficeFilter) &&
-        filterByCompactDate(assignment, compactDateFilter)
-      );
-    } else {
-      return normalizedAssignments.filter(assignment => 
-        filterByEntity(assignment, detailedFacultyFilter, detailedSchoolFilter, detailedOfficeFilter) &&
-        filterByDateRange(assignment, detailedDateFrom, detailedDateTo)
-      );
+    try {
+      // Primero filtramos por entidad
+      let filtered = normalizedAssignments.filter(assignment => {
+        try {
+          return filterByEntity(
+            assignment,
+            viewMode === 'compact' ? compactFacultyFilter : detailedFacultyFilter,
+            viewMode === 'compact' ? compactSchoolFilter : detailedSchoolFilter,
+            viewMode === 'compact' ? compactOfficeFilter : detailedOfficeFilter
+          );
+        } catch (error) {
+          console.error('Error in entity filtering:', error);
+          return true;
+        }
+      });
+
+      // Luego aplicamos el filtro de fecha según el modo
+      filtered = filtered.filter(assignment => {
+        try {
+          if (viewMode === 'compact') {
+            return filterByCompactDate(assignment, compactDateFilter);
+          } else {
+            return filterByDateRange(assignment, detailedDateFrom, detailedDateTo);
+          }
+        } catch (error) {
+          console.error('Error in date filtering:', error);
+          return true;
+        }
+      });
+
+      console.log(`Filtered assignments (${viewMode}):`, filtered.length);
+      return filtered;
+    } catch (error) {
+      console.error('Error in getFilteredAssignments:', error);
+      return normalizedAssignments; // En caso de error, devolver todas las asignaciones
     }
   };
 

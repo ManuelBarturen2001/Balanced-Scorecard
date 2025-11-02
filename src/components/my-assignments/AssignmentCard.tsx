@@ -15,29 +15,31 @@ interface AssignmentCardProps {
   getFacultyName?: (userId: string) => string;
   getSchoolName?: (userId: string) => string;
   getOfficeName?: (userId: string) => string;
-  getPerspectiveName?: (perspectiveId: string) => string;
+  getPerspectiveName?: (perspectiveId: string) => string | undefined;
   getJuryNames?: (juryIds: string[]) => string;
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   Pending: 'bg-yellow-100 text-yellow-800',
   Submitted: 'bg-blue-100 text-blue-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
   Overdue: 'bg-orange-100 text-orange-800',
+  Observed: 'bg-purple-100 text-purple-800',
 };
 
-const statusTranslations = {
+const statusTranslations: Record<string, string> = {
   Pending: 'Pendiente',
   Submitted: 'Presentado',
   Approved: 'Aprobado',
   Rejected: 'Rechazado',
   Overdue: 'Vencido',
+  Observed: 'Observado',
 };
 
 export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload, userId, isAsignador = false, getStudentName, getFacultyName, getSchoolName, getOfficeName, getPerspectiveName, getJuryNames }: AssignmentCardProps) {
   // Estado de la asignación
-  const status = assignedIndicator.overallStatus || 'Pending';
+  const status = assignedIndicator.overallStatus || 'Pending' as const;
 
   if (isAsignador) {
     // Vista para asignadores
@@ -45,19 +47,25 @@ export function AssignmentCard({ assignedIndicator, onViewDetails, onFileUpload,
     const facultyName = getFacultyName ? getFacultyName(assignedIndicator.userId) : 'Sin facultad';
     const schoolName = getSchoolName ? getSchoolName(assignedIndicator.userId) : 'Sin escuela';
     const officeName = getOfficeName ? getOfficeName(assignedIndicator.userId) : 'Sin oficina';
-    const perspectiveName = getPerspectiveName ? getPerspectiveName(assignedIndicator.perspectiveId) : 'Sin perspectiva';
-    const juryName = getJuryNames ? getJuryNames(assignedIndicator.jury) : (assignedIndicator.jury?.length > 0 ? `${assignedIndicator.jury.length} jurado(s)` : 'Sin jurado asignado');
+    const perspectiveName = getPerspectiveName ? getPerspectiveName(assignedIndicator.perspectiveId || '') : 'Sin perspectiva';
+    const juryName = getJuryNames 
+      ? getJuryNames(assignedIndicator.jury || [])
+      : (assignedIndicator.jury && assignedIndicator.jury.length > 0 
+          ? `${assignedIndicator.jury.length} jurado(s)` 
+          : 'Sin jurado asignado');
     
     // Determinar si es facultad u oficina basado en los datos del usuario
     const hasFaculty = facultyName && !facultyName.includes('Sin facultad');
     const hasOffice = officeName && !officeName.includes('Sin oficina');
     
     // Formatear fecha de vencimiento
-    const dueDate = assignedIndicator.dueDate ? new Date(assignedIndicator.dueDate).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }) : 'Sin fecha límite';
+    const dueDate = assignedIndicator.dueDate 
+      ? new Date(assignedIndicator.dueDate instanceof Date ? assignedIndicator.dueDate : assignedIndicator.dueDate).toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }) 
+      : 'Sin fecha límite';
 
     return (
       <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onViewDetails(assignedIndicator)}>

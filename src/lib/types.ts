@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { Timestamp } from 'firebase/firestore';
 
 // Nuevo sistema de roles
 export type UserRole = 'responsable' | 'calificador' | 'asignador' | 'admin' | 'supervisor';
@@ -82,6 +83,39 @@ export interface Indicator {
   perspectiveId?: string;
 }
 
+export interface MockFile {
+  name: string;
+  url: string;
+  uploadedAt?: Date | Timestamp | string;
+  size?: number;
+  type?: string;
+  fileName?: string;
+  originalName?: string;
+}
+
+export interface AssignedVerificationMethod {
+  name: string;
+  status: VerificationStatus;
+  submittedFile?: MockFile | null;
+  notes?: string;
+  dueDate: Date | string;
+  fileHistory?: MockFile[];
+}
+
+export interface AssignedIndicator {
+  id?: string;
+  responsableName?: string;
+  userId: string;
+  indicatorId: string;
+  assignerId: string;
+  perspectiveId?: string;
+  dueDate: Date | string;
+  assignedVerificationMethods: AssignedVerificationMethod[];
+  overallStatus?: VerificationStatus;
+  assignedDate: Date | string;  // Quitamos el opcional
+  jury?: string[];
+}
+
 export interface Perspective {
   id: string;
   name: string;
@@ -92,40 +126,6 @@ export type VerificationStatus = 'Pending' | 'Submitted' | 'Approved' | 'Rejecte
 
 export interface VerificationMethod {
   name: string;
-}
-
-import type { Timestamp } from 'firebase/firestore';
-
-export interface MockFile {
-  name: string;
-  url: string;
-  uploadedAt?: Date | Timestamp | number | string | any; // Permitir Date, Timestamp, número, string o cualquier formato
-  size?: number;
-  type?: string;
-  fileName?: string; // Nombre del archivo físico guardado
-  originalName?: string; // Nombre original del archivo
-}
-
-export interface AssignedVerificationMethod {
-  name: string;
-  status: VerificationStatus;
-  submittedFile?: MockFile | null;
-  notes?: string;
-  dueDate?: Date | string; // Permitir tanto Date como string ISO
-  fileHistory?: MockFile[]; // Historial de archivos subidos
-}
-
-export interface AssignedIndicator {
-  responsableName: string;
-  id?: string;
-  userId: string;
-  indicatorId: string;
-  dueDate?: Date | string; // Permitir tanto Date como string ISO
-  perspectiveId: string;
-  assignedVerificationMethods: AssignedVerificationMethod[];
-  overallStatus?: VerificationStatus;
-  assignedDate: Date | string; // Permitir tanto Date como string ISO
-  jury: string[];
 }
 
 export interface NavItemConfig {

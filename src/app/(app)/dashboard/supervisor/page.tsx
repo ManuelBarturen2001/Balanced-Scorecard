@@ -1968,7 +1968,11 @@ export default function SupervisorDashboard() {
               ) : (
                 <div className="space-y-3">
                   {filteredAssignments
-                    .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
+                    .sort((a, b) => {
+                      const dateA = a.assignedDate ? new Date(a.assignedDate) : new Date(0);
+                      const dateB = b.assignedDate ? new Date(b.assignedDate) : new Date(0);
+                      return dateB.getTime() - dateA.getTime();
+                    })
                     .slice(0, 10)
                     .map((assignment) => (
                       <div

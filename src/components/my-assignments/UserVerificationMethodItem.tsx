@@ -28,9 +28,7 @@ interface FileHistoryItem {
   type: string;
 }
 
-interface VerificationMethodWithHistory extends AssignedVerificationMethod {
-  fileHistory?: FileHistoryItem[];
-}
+
 
 const statusIcons: Record<VerificationStatus, React.ElementType> = {
   Pending: Clock,
@@ -81,13 +79,35 @@ export function UserVerificationMethodItem({ assignedIndicatorId, verificationMe
     // Cargar el historial desde Firebase si existe
     if (verificationMethod.fileHistory && Array.isArray(verificationMethod.fileHistory)) {
       // Convertir las fechas del historial de manera segura
-             const validHistory = verificationMethod.fileHistory.map(file => ({
-        name: file.name || 'Archivo',
-        url: file.url || '',
-        uploadedAt: file.uploadedAt ? (typeof file.uploadedAt === 'string' ? file.uploadedAt : new Date(file.uploadedAt).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0], // Usar solo fechas
-        size: file.size || 0,
-        type: file.type || 'file'
-      }));
+             const validHistory = verificationMethod.fileHistory.map(file => {
+        let uploadedDate: string;
+        if (file.uploadedAt) {
+          if (typeof file.uploadedAt === 'string') {
+            uploadedDate = file.uploadedAt;
+          } else if ('toDate' in file.uploadedAt && typeof file.uploadedAt.toDate === 'function') {
+            // Si es un Timestamp de Firebase
+            uploadedDate = file.uploadedAt.toDate().toISOString().split('T')[0];
+          } else if (file.uploadedAt instanceof Date) {
+            uploadedDate = file.uploadedAt.toISOString().split('T')[0];
+          } else if (typeof file.uploadedAt === 'number') {
+            // Si es un timestamp numérico
+            uploadedDate = new Date(file.uploadedAt).toISOString().split('T')[0];
+          } else {
+            // Valor por defecto si no podemos procesar la fecha
+            uploadedDate = new Date().toISOString().split('T')[0];
+          }
+        } else {
+          uploadedDate = new Date().toISOString().split('T')[0];
+        }
+
+        return {
+          name: file.name || 'Archivo',
+          url: file.url || '',
+          uploadedAt: uploadedDate,
+          size: file.size || 0,
+          type: file.type || 'file'
+        };
+      });
       setFileHistory(validHistory);
       console.log('✅ Historial cargado:', validHistory);
     }

@@ -95,7 +95,7 @@ export function AssignmentDetailsModal({ indicator, isOpen, onClose }: Assignmen
         try {
           const [indicatorData, perspectiveData] = await Promise.all([
             getIndicatorById(indicator.indicatorId),
-            getPerspectiveById(indicator.perspectiveId)
+            getPerspectiveById(indicator.perspectiveId || '')
           ]);
           setIndicatorInfo(indicatorData);
           setPerspectiveInfo(perspectiveData);

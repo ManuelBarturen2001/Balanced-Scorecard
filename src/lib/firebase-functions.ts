@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from './firebase';
 import type { User } from './types';
 
@@ -132,4 +132,13 @@ export const updateDocument = async <T>(path: string, id: string, data: Partial<
   }
 };
 
+export const deleteDocument = async (path: string, id: string): Promise<void> => {
+  try {
+    const docRef = doc(firestore, path, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error(`Error deleting document ${id} from ${path}:`, error);
+    throw error;
+  }
+};
 

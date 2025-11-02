@@ -65,14 +65,14 @@ export function HistorialModal({
         const perspectiveMap: Record<string, Perspective> = {};
 
         for (const assignedInd of assignedIndicators) {
-          if (!indicators[assignedInd.indicatorId]) {
+          if (assignedInd.indicatorId && !indicators[assignedInd.indicatorId]) {
             const indicator = await getIndicatorById(assignedInd.indicatorId);
             if (indicator) {
               indicatorMap[assignedInd.indicatorId] = indicator;
             }
           }
 
-          if (!perspectives[assignedInd.perspectiveId]) {
+          if (assignedInd.perspectiveId && !perspectives[assignedInd.perspectiveId]) {
             const perspective = await getPerspectiveById(assignedInd.perspectiveId);
             if (perspective) {
               perspectiveMap[assignedInd.perspectiveId] = perspective;
@@ -224,8 +224,8 @@ export function HistorialModal({
               </Card>
             ) : (
               assignedIndicators.map((assignedIndicator, index) => {
-                const indicator = indicators[assignedIndicator.indicatorId];
-                const perspective = perspectives[assignedIndicator.perspectiveId];
+                const indicator = assignedIndicator.indicatorId ? indicators[assignedIndicator.indicatorId] : null;
+                const perspective = assignedIndicator.perspectiveId ? perspectives[assignedIndicator.perspectiveId] : null;
                 
                 if (!indicator) return null;
 
@@ -237,7 +237,8 @@ export function HistorialModal({
                         {indicator.name}
                       </CardTitle>
                       <CardDescription>
-                        {perspective?.name} • Asignado: {formatDate(assignedIndicator.assignedDate)}
+                        {assignedIndicator.perspectiveId && perspectives[assignedIndicator.perspectiveId]?.name} • 
+                        Asignado: {formatDate(assignedIndicator.assignedDate)}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

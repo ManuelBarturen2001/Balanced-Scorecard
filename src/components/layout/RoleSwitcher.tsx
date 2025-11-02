@@ -14,18 +14,20 @@ import { User, FileCheck, Users, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/lib/types';
 
-const roleIcons = {
+const roleIcons: Record<UserRole, React.ElementType> = {
   responsable: User,
   calificador: FileCheck,
   asignador: Users,
   admin: Settings,
+  supervisor: Settings, // Añadido para cumplir con el tipo UserRole
 };
 
-const roleLabels = {
+const roleLabels: Record<UserRole, string> = {
   responsable: 'Responsable',
   calificador: 'Calificador',
   asignador: 'Asignador',
   admin: 'Administrador',
+  supervisor: 'Supervisor', // Añadido para cumplir con el tipo UserRole
 };
 
 export function RoleSwitcher() {
@@ -78,7 +80,7 @@ export function RoleSwitcher() {
     }
   };
 
-  const currentRoleIcon = roleIcons[user.role];
+  const currentRoleIcon = roleIcons[user.role] ;
   const CurrentIcon = currentRoleIcon || User;
 
   return (

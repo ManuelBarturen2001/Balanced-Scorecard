@@ -260,18 +260,29 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
                                                 if (!date) return 'Fecha no disponible';
                                                 
                                                 let dateObj: Date;
-                                                if (date.seconds) {
-                                                    dateObj = new Date(date.seconds * 1000);
-                                                } else if (date instanceof Date) {
-                                                    dateObj = date;
-                                                } else if (typeof date === 'object' && date.toDate) {
-                                                    dateObj = date.toDate();
-                                                } else if (typeof date === 'number') {
-                                                    dateObj = new Date(date);
+                                                
+                                                if (typeof date === 'object') {
+                                                    if ('seconds' in date) {
+                                                        // Es un Timestamp de Firebase
+                                                        dateObj = new Date((date as { seconds: number }).seconds * 1000);
+                                                    } else if ('toDate' in date && typeof date.toDate === 'function') {
+                                                        // Es un Timestamp de Firebase (otro formato)
+                                                        dateObj = date.toDate();
+                                                    } else if (date instanceof Date) {
+                                                        // Es un objeto Date
+                                                        dateObj = date;
+                                                    } else {
+                                                        // Intentar crear Date del objeto
+                                                        dateObj = new Date(date as any);
+                                                    }
                                                 } else if (typeof date === 'string') {
+                                                    // Es una cadena de fecha
+                                                    dateObj = new Date(date);
+                                                } else if (typeof date === 'number') {
+                                                    // Es un timestamp numérico
                                                     dateObj = new Date(date);
                                                 } else {
-                                                    dateObj = new Date(date);
+                                                    throw new Error('Formato de fecha no válido');
                                                 }
                                                 
                                                 if (isNaN(dateObj.getTime()) || dateObj.getTime() === 0) {

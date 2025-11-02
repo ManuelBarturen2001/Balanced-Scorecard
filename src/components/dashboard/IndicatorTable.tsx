@@ -150,10 +150,10 @@ export function IndicatorTable({ assignedIndicators }: IndicatorTableProps) {
           }
         }
 
-        if (!perspectives[assignedInd.perspectiveId]) {
-          const perspective = await getPerspectiveById(assignedInd.perspectiveId);
+        if (!perspectives[assignedInd.perspectiveId || '']) {
+          const perspective = await getPerspectiveById(assignedInd.perspectiveId || '');
           if (perspective) {
-            perspectiveMap[assignedInd.perspectiveId] = perspective;
+            perspectiveMap[assignedInd.perspectiveId || ''] = perspective;
           }
         }
       }
@@ -191,7 +191,7 @@ export function IndicatorTable({ assignedIndicators }: IndicatorTableProps) {
         <Accordion type="single" collapsible className="w-full">
           {assignedIndicators.map((assignedInd,i) => {
             const indicator = indicators[assignedInd.indicatorId];
-            const perspective = perspectives[assignedInd.perspectiveId];
+            const perspective = perspectives[assignedInd.perspectiveId || ''];
             
             if (!indicator) {
               return (

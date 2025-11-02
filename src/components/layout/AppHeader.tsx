@@ -83,7 +83,7 @@ export function AppHeader() {
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">
-                          {roleLabels[user.role]}
+                          {roleLabels[user.role as keyof typeof roleLabels] || user.role}
                         </Badge>
                         {user.roleType === 'variante' && (
                           <Badge variant="secondary" className="text-xs">

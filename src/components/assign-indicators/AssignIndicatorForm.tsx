@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { getAllUsers, getAllIndicators, getAllPerspectives, insertAssignedIndicator, checkExistingAssignment, getAllFaculties, getAllProfessionalSchools, getAllOffices } from '@/lib/data';
+import { getAllUsers, getAllIndicators, getAllPerspectives, insertAssignedIndicator, checkExistingAssignment, checkDuplicateVerificationMethods, getAllFaculties, getAllProfessionalSchools, getAllOffices } from '@/lib/data';
 import type { AssignedIndicator, User, Indicator, Perspective, VerificationMethod, Faculty, ProfessionalSchool, Office } from '@/lib/types';
 import { Loader2, PlusCircle, Save, Search, Filter, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -367,11 +367,19 @@ export function AssignIndicatorForm({ users: propUsers, onAssignmentCreated }: A
     }
 
     try {
-      // Verificar si ya existe una asignación para este usuario e indicador
-      const hasExistingAssignment = await checkExistingAssignment(targetUserId, selectedIndicatorId);
+      // Verificar si el usuario ya tiene los mismos métodos de verificación asignados para este indicador
+      const { isDuplicate, duplicateMethods } = await checkDuplicateVerificationMethods(
+        targetUserId,
+        selectedIndicatorId,
+        enabledVerificationMethods
+      );
 
-      if (hasExistingAssignment) {
-        alert(`Ya existe una asignación del indicador seleccionado para el usuario. No se puede crear una asignación duplicada.`);
+      if (isDuplicate) {
+        toast({
+          title: "Métodos duplicados",
+          description: `El responsable ya tiene asignados: ${duplicateMethods.join(', ')}`,
+          variant: "destructive",
+        });
         return;
       }
 

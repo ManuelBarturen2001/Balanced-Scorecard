@@ -437,6 +437,45 @@ export const checkExistingAssignment = async (userId: string, indicatorId: strin
   }
 };
 
+export const checkDuplicateVerificationMethods = async (
+  userId: string,
+  indicatorId: string,
+  verificationMethods: string[]
+): Promise<{ isDuplicate: boolean; duplicateMethods: string[] }> => {
+  try {
+    const conditions = [
+      { field: 'userId', operator: '==' as const, value: userId },
+      { field: 'indicatorId', operator: '==' as const, value: indicatorId }
+    ];
+    
+    const existingAssignments = await getCollectionWhereMultipleConditions<AssignedIndicator>('assigned_indicator', conditions);
+    
+    if (existingAssignments.length === 0) {
+      return { isDuplicate: false, duplicateMethods: [] };
+    }
+    
+    // Verificar si los métodos de verificación ya existen en cualquier asignación existente
+    const duplicateMethods: string[] = [];
+    
+    for (const assignment of existingAssignments) {
+      const existingMethods = (assignment.assignedVerificationMethods || []).map(m => m.name);
+      const foundDuplicates = verificationMethods.filter(method => existingMethods.includes(method));
+      
+      if (foundDuplicates.length > 0) {
+        duplicateMethods.push(...foundDuplicates);
+      }
+    }
+    
+    return {
+      isDuplicate: duplicateMethods.length > 0,
+      duplicateMethods: [...new Set(duplicateMethods)] // Remove duplicates
+    };
+  } catch (error) {
+    console.error('Error checking duplicate verification methods:', error);
+    return { isDuplicate: false, duplicateMethods: [] };
+  }
+};
+
 export const uploadFile = async (
   file: File,
   assignedIndicatorId: string,

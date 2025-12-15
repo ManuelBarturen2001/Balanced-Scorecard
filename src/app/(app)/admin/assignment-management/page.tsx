@@ -281,119 +281,138 @@ export default function AssignmentManagementPage() {
               Modifica los métodos de verificación habilitados para esta asignación.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Indicador</Label>
-              <Input
-                value={indicators[editingAssignment?.indicatorId || ""]?.name || ""}
-                disabled
-              />
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Responsable Actual</Label>
+          <ScrollArea className="h-[calc(90vh-200px)] pr-4">
+            <div className="space-y-6 pr-4">
+              {/* Indicador */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Indicador</h3>
                 <Input
-                  value={users[editingAssignment?.userId || ""]?.name || ""}
+                  value={indicators[editingAssignment?.indicatorId || ""]?.name || ""}
                   disabled
+                  className="bg-muted"
                 />
               </div>
-              {!editingAssignment?.assignedVerificationMethods?.some(m => 
-                m.status !== "Pending" || new Date(m.dueDate) < new Date()
-              ) && (
+
+              {/* Responsable */}
+              <div className="space-y-3 pb-4 border-b">
+                <h3 className="font-semibold text-sm">Responsable</h3>
                 <div className="space-y-2">
-                  <Label>Cambiar Responsable</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-md"
-                    value={editingAssignment?.userId || ""}
-                    onChange={(e) => {
-                      if (editingAssignment) {
-                        setEditingAssignment({
-                          ...editingAssignment,
-                          userId: e.target.value
-                        });
-                      }
-                    }}
-                  >
-                    <option value="">Seleccionar nuevo responsable</option>
-                    {Object.values(users)
-                      .filter(u => u.role === "responsable")
-                      .map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.name} ({user.email})
-                        </option>
-                      ))
-                    }
-                  </select>
+                  <Label className="text-xs text-muted-foreground">Responsable Actual</Label>
+                  <Input
+                    value={users[editingAssignment?.userId || ""]?.name || ""}
+                    disabled
+                    className="bg-muted"
+                  />
                 </div>
-              )}
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Jurado Actual</Label>
-                <Input
-                  value={users[editingAssignment?.assignerId || ""]?.name || ""}
-                  disabled
-                />
-              </div>
-              {!editingAssignment?.assignedVerificationMethods?.some(m => 
-                m.status !== "Pending" || new Date(m.dueDate) < new Date()
-              ) && (
-                <div className="space-y-2">
-                  <Label>Cambiar Jurado</Label>
-                  <select
-                    className="w-full px-3 py-2 border rounded-md"
-                    value={editingAssignment?.assignerId || ""}
-                    onChange={(e) => {
-                      if (editingAssignment) {
-                        setEditingAssignment({
-                          ...editingAssignment,
-                          assignerId: e.target.value
-                        });
-                      }
-                    }}
-                  >
-                    <option value="">Seleccionar nuevo jurado</option>
-                    {Object.values(users)
-                      .filter(u => u.role === "calificador")
-                      .map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.name} ({user.email})
-                        </option>
-                      ))
-                    }
-                  </select>
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Métodos de Verificación</Label>
-              {indicators[editingAssignment?.indicatorId || ""]?.verificationMethods?.map((method, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`method-${index}`}
-                    checked={enabledMethods.includes(method)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setEnabledMethods([...enabledMethods, method]);
-                      } else {
-                        if (enabledMethods.length > 1) {
-                          setEnabledMethods(enabledMethods.filter(m => m !== method));
-                        } else {
-                          toast({
-                            title: "Error",
-                            description: "Debe mantener al menos un método de verificación habilitado.",
-                            variant: "destructive",
+                {!editingAssignment?.assignedVerificationMethods?.some(m => 
+                  m.status !== "Pending" || new Date(m.dueDate) < new Date()
+                ) && (
+                  <div className="space-y-2 pt-2">
+                    <Label className="text-xs text-muted-foreground">Cambiar Responsable</Label>
+                    <select
+                      className="w-full px-3 py-2 border rounded-md bg-white text-sm"
+                      value={editingAssignment?.userId || ""}
+                      onChange={(e) => {
+                        if (editingAssignment) {
+                          setEditingAssignment({
+                            ...editingAssignment,
+                            userId: e.target.value
                           });
                         }
+                      }}
+                    >
+                      <option value="">Seleccionar nuevo responsable</option>
+                      {Object.values(users)
+                        .filter(u => u.role === "responsable")
+                        .map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.name} ({user.email})
+                          </option>
+                        ))
                       }
-                    }}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Jurado */}
+              <div className="space-y-3 pb-4 border-b">
+                <h3 className="font-semibold text-sm">Jurado Calificador</h3>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Jurado Actual</Label>
+                  <Input
+                    value={users[editingAssignment?.assignerId || ""]?.name || ""}
+                    disabled
+                    className="bg-muted"
                   />
-                  <Label htmlFor={`method-${index}`}>{method}</Label>
                 </div>
-              ))}
+                {!editingAssignment?.assignedVerificationMethods?.some(m => 
+                  m.status !== "Pending" || new Date(m.dueDate) < new Date()
+                ) && (
+                  <div className="space-y-2 pt-2">
+                    <Label className="text-xs text-muted-foreground">Cambiar Jurado</Label>
+                    <select
+                      className="w-full px-3 py-2 border rounded-md bg-white text-sm"
+                      value={editingAssignment?.assignerId || ""}
+                      onChange={(e) => {
+                        if (editingAssignment) {
+                          setEditingAssignment({
+                            ...editingAssignment,
+                            assignerId: e.target.value
+                          });
+                        }
+                      }}
+                    >
+                      <option value="">Seleccionar nuevo jurado</option>
+                      {Object.values(users)
+                        .filter(u => u.role === "calificador")
+                        .map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.name} ({user.email})
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Métodos de Verificación */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Métodos de Verificación Habilitados</h3>
+                <div className="space-y-2">
+                  {indicators[editingAssignment?.indicatorId || ""]?.verificationMethods?.map((method, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                      <Checkbox
+                        id={`method-${index}`}
+                        checked={enabledMethods.includes(method)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setEnabledMethods([...enabledMethods, method]);
+                          } else {
+                            if (enabledMethods.length > 1) {
+                              setEnabledMethods(enabledMethods.filter(m => m !== method));
+                            } else {
+                              toast({
+                                title: "Error",
+                                description: "Debe mantener al menos un método de verificación habilitado.",
+                                variant: "destructive",
+                              });
+                            }
+                          }
+                        }}
+                        className="mt-1"
+                      />
+                      <Label htmlFor={`method-${index}`} className="text-sm font-normal cursor-pointer flex-1">
+                        {method}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-          <DialogFooter>
+          </ScrollArea>
+          <DialogFooter className="mt-6 border-t pt-4">
             <Button variant="outline" onClick={() => setShowEditModal(false)}>
               Cancelar
             </Button>

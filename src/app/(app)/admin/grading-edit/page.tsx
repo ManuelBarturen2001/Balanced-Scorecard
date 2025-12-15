@@ -178,7 +178,7 @@ export default function GradingEditPage() {
   }
 
   return (
-    <RouteProtector allowedRoles={['calificador']}>
+    <RouteProtector allowedRoles={['calificador', 'admin']}>
       <div className="space-y-6">
       <Card className="border-border">
         <CardHeader>

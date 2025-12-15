@@ -569,7 +569,7 @@ export default function MyAssignmentsPage() {
         />
       )}
         </div>
-      </div>
+      
     </RouteProtector>
   );
 }

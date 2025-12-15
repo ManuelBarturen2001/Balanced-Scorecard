@@ -131,7 +131,7 @@ export default function GradingPage() {
   }
 
   return (
-    <RouteProtector allowedRoles={['calificador']}>
+    <RouteProtector allowedRoles={['calificador', 'supervisor']}>
       <div className="container mx-auto py-6">
         <div className="space-y-6">
           {/* Mensaje informativo si se accede con un ID específico */}

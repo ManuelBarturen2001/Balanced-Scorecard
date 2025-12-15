@@ -127,7 +127,9 @@ export function AppSidebar() {
                   item.title === 'Gestión de Asignadores' ||
                   item.title === 'Gestión de Calificadores' ||
                   item.title === 'Gestión de Calificaciones' ||
-                  item.title === 'Gestión de Indicadores'
+                  item.title === 'Gestión de Indicadores' ||
+                  item.title === 'Calificación' ||
+                  item.title === 'Edición de Calificaciones'
                 ) {
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > 1);
                   return (

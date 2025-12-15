@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function CalificacionesMainPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSupervisor, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState({
     totalCalificadores: 0,
@@ -22,7 +22,7 @@ export default function CalificacionesMainPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
+    if (!authLoading && !isAdmin && !isSupervisor) {
       window.location.href = '/dashboard';
       return;
     }
@@ -66,10 +66,10 @@ export default function CalificacionesMainPage() {
       }
     };
 
-    if (isAdmin) {
+    if (isAdmin || isSupervisor) {
       fetchStats();
     }
-  }, [isAdmin, authLoading, toast]);
+  }, [isAdmin, isSupervisor, authLoading, toast]);
 
   if (authLoading || isLoading) {
     return (
@@ -91,7 +91,7 @@ export default function CalificacionesMainPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSupervisor) {
     return null;
   }
 

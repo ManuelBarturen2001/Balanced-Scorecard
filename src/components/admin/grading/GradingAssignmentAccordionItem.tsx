@@ -165,9 +165,31 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
   const totalMethodsCount = assignment.assignedVerificationMethods.length;
   const progressPercentage = totalMethodsCount > 0 ? (approvedMethodsCount / totalMethodsCount) * 100 : 0;
   
+  // Función auxiliar para convertir dueDate a Date
+  const convertDueDateToDate = (dueDate: any): Date | null => {
+    try {
+      if (!dueDate) return null;
+      if (typeof dueDate === 'object' && 'seconds' in dueDate) {
+        return new Date((dueDate as { seconds: number }).seconds * 1000);
+      } else if (dueDate instanceof Date) {
+        return dueDate;
+      } else if (typeof dueDate === 'string') {
+        return parseISO(dueDate);
+      } else if (typeof dueDate === 'number') {
+        return new Date(dueDate);
+      }
+    } catch (e) {
+      console.error('Error converting dueDate:', e);
+    }
+    return null;
+  };
+  
   let overallStatus = assignment.overallStatus || 'Pending';
   //@ts-ignore
-  if ((overallStatus === 'Pending' || overallStatus === 'Observed') && assignment.assignedVerificationMethods.some(vm => vm.dueDate && isPast(new Date(vm.dueDate?.seconds * 1000)) && (vm.status === 'Pending' || vm.status === 'Observed'))) {
+  if ((overallStatus === 'Pending' || overallStatus === 'Observed') && assignment.assignedVerificationMethods.some(vm => {
+    const dueDateObj = convertDueDateToDate(vm.dueDate);
+    return dueDateObj && isPast(dueDateObj) && (vm.status === 'Pending' || vm.status === 'Observed');
+  })) {
       overallStatus = 'Overdue';
   }
   const OverallStatusIcon = statusIcons[overallStatus] || Info;
@@ -205,6 +227,31 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
                     <Users className="h-3.5 w-3.5" /> <span className="truncate" title={userName}>{userName}</span>
                     <span className="hidden sm:inline-block">|</span>
                     <span className="whitespace-nowrap">Progreso: {approvedMethodsCount}/{totalMethodsCount}</span>
+                    <span className="hidden sm:inline-block">|</span>
+                    {assignment.assignedVerificationMethods[0]?.dueDate && (
+                        <span className="whitespace-nowrap">
+                            Vencimiento: {
+                                (() => {
+                                    try {
+                                        const dueDate = assignment.assignedVerificationMethods[0].dueDate;
+                                        let dateObj: Date;
+                                        
+                                        if (typeof dueDate === 'object' && 'seconds' in dueDate) {
+                                            dateObj = new Date((dueDate as { seconds: number }).seconds * 1000);
+                                        } else if (dueDate instanceof Date) {
+                                            dateObj = dueDate;
+                                        } else {
+                                            dateObj = new Date(dueDate as any);
+                                        }
+                                        
+                                        return format(dateObj, 'dd-MMM-yyyy', { locale: es });
+                                    } catch {
+                                        return 'N/A';
+                                    }
+                                })()
+                            }
+                        </span>
+                    )}
                 </div>
                 <Progress value={progressPercentage} className="h-1.5 mt-1.5 w-full sm:w-3/4 md:w-1/2" />
             </div>
@@ -225,7 +272,8 @@ export function GradingAssignmentAccordionItem({ assignment, indicator, indicato
               const methodInfo = getMethodInfo(method.name);
               let currentVmStatus = method.status; 
               //@ts-ignore
-              if (method.status === 'Pending' && method.dueDate && isPast(new Date(method.dueDate?.seconds * 1000))) {
+              const dueDateObj = convertDueDateToDate(method.dueDate);
+              if (method.status === 'Pending' && dueDateObj && isPast(dueDateObj)) {
                   currentVmStatus = 'Overdue';
               }
               const VmStatusIcon = statusIcons[currentVmStatus] || Info;

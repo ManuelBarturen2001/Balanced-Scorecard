@@ -23,7 +23,7 @@ import type { ProfessionalSchool } from '@/lib/types';
 export default function CalificacionesPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSupervisor, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
   const calificadorId = typeof params.calificadorId === 'string' ? params.calificadorId : '';
@@ -47,7 +47,7 @@ export default function CalificacionesPage() {
   const [offices, setOffices] = useState<Office[]>([]);
 
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
+    if (!authLoading && !isAdmin && !isSupervisor) {
       router.replace('/dashboard');
       return;
     }
@@ -103,10 +103,10 @@ export default function CalificacionesPage() {
       }
     };
 
-    if (isAdmin && calificadorId) {
+    if ((isAdmin || isSupervisor) && calificadorId) {
       fetchData();
     }
-  }, [isAdmin, authLoading, calificadorId, router, toast]);
+  }, [isAdmin, isSupervisor, authLoading, calificadorId, router, toast]);
 
   const getInitials = (name: string = "") => {
     const names = name.split(' ');
@@ -216,7 +216,7 @@ export default function CalificacionesPage() {
     );
   }
 
-  if (!isAdmin || !calificador) {
+  if ((!isAdmin && !isSupervisor) || !calificador) {
     return null;
   }
 

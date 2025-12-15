@@ -99,13 +99,23 @@ export default function CalificadorDashboard() {
   };
 
   const deriveStatus = (a: AssignedIndicator): VerificationStatus => {
+    // 1. COMPLETADO (Approved o Rejected)
     const base = a.overallStatus || 'Pending';
-    if (base === 'Approved' || base === 'Rejected' || base === 'Submitted') return base;
-    const overdue = a.assignedVerificationMethods?.some(vm => {
+    if (base === 'Approved' || base === 'Rejected') return base;
+    
+    // 2. VENCIDO (tiene métodos pendientes/observados con fecha vencida) - Máxima prioridad
+    const hasOverdue = a.assignedVerificationMethods?.some(vm => {
       const due = parseDate((vm as any).dueDate);
       return (vm.status === 'Pending' || vm.status === 'Observed') && due && isPast(due);
     });
-    return overdue ? 'Overdue' : (base === 'Observed' ? 'Observed' : 'Pending');
+    if (hasOverdue) return 'Overdue';
+    
+    // 3. ACTIVO (tiene métodos presentados pero no todos aprobados)
+    const hasSubmitted = a.assignedVerificationMethods?.some(vm => vm.status === 'Submitted');
+    if (hasSubmitted) return 'Submitted';
+    
+    // 4. PENDIENTE (ningún método presentado y no está vencido)
+    return 'Pending';
   };
 
   const normalized = assignments.map(a => ({
@@ -123,8 +133,11 @@ export default function CalificadorDashboard() {
   const completedEvaluations = normalized.filter(
     assignment => assignment.derivedStatus === 'Approved' || assignment.derivedStatus === 'Rejected'
   ).length;
-  const pendingEvaluations = normalized.filter(
+  const activeEvaluations = normalized.filter(
     assignment => assignment.derivedStatus === 'Submitted'
+  ).length;
+  const pendingEvaluations = normalized.filter(
+    assignment => assignment.derivedStatus === 'Pending'
   ).length;
   const overdueEvaluations = normalized.filter(
     assignment => assignment.derivedStatus === 'Overdue'
@@ -163,8 +176,8 @@ export default function CalificadorDashboard() {
     doc.autoTable({
       startY: 90,
       styles: { fontSize: 10 },
-      head: [['Total', 'Completadas', 'Pendientes', 'Vencidas']],
-      body: [[totalEvaluations, completedEvaluations, pendingEvaluations, overdueEvaluations]]
+      head: [['Total', 'Completadas', 'Activas', 'Pendientes', 'Vencidas']],
+      body: [[totalEvaluations, completedEvaluations, activeEvaluations, pendingEvaluations, overdueEvaluations]]
     });
 
     // Evaluaciones recientes
@@ -194,6 +207,7 @@ export default function CalificadorDashboard() {
       [],
       ['Total', totalEvaluations],
       ['Completadas', completedEvaluations],
+      ['Activas', activeEvaluations],
       ['Pendientes', pendingEvaluations],
       ['Vencidas', overdueEvaluations],
     ];
@@ -270,13 +284,26 @@ export default function CalificadorDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Activas</CardTitle>
+            <FileCheck className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{activeEvaluations}</div>
+            <p className="text-xs text-muted-foreground">
+              En progreso
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{pendingEvaluations}</div>
             <p className="text-xs text-muted-foreground">
-              Por evaluar
+              Sin iniciar
             </p>
           </CardContent>
         </Card>
@@ -322,6 +349,7 @@ export default function CalificadorDashboard() {
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
           <TabsTrigger value="pending">Pendientes</TabsTrigger>
+          <TabsTrigger value="active">Activas</TabsTrigger>
           <TabsTrigger value="overdue">Vencidas</TabsTrigger>
           <TabsTrigger value="completed">Completadas</TabsTrigger>
           <TabsTrigger value="recent">Recientes</TabsTrigger>
@@ -330,7 +358,7 @@ export default function CalificadorDashboard() {
         <TabsContent value="pending" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Evaluaciones Pendientes</CardTitle>
+              <CardTitle>Evaluaciones Pendientes (Sin Iniciar)</CardTitle>
               <CardDescription>
                 Evaluaciones que requieren tu atención
               </CardDescription>
@@ -340,6 +368,63 @@ export default function CalificadorDashboard() {
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-600" />
                   <p>¡Excelente! No tienes evaluaciones pendientes</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {normalized
+                    .filter(assignment => assignment.derivedStatus === 'Pending')
+                    .map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                          <div>
+                            <p className="font-medium">
+                              {getStudentName(assignment.userId)}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Asignación #{assignment.id} • {getFacultyName(assignment.userId)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Asignado el {assignment.assignedDateObj ? format(assignment.assignedDateObj, 'dd-MMM-yyyy', { locale: es }) : '-'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            Sin iniciar
+                          </Badge>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewDetails(assignment.id!)}
+                          >
+                            Iniciar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="active" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Evaluaciones Activas (En Progreso)</CardTitle>
+              <CardDescription>
+                Evaluaciones con trabajo en progreso
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {activeEvaluations === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileCheck className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                  <p>No tienes evaluaciones activas en este momento</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -366,14 +451,14 @@ export default function CalificadorDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className="bg-blue-100 text-blue-800">
-                            Por evaluar
+                            En progreso
                           </Badge>
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewDetails(assignment.id!)}
                           >
-                            Evaluar ahora
+                            Continuar
                           </Button>
                         </div>
                       </div>

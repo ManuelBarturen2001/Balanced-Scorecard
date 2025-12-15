@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FileCheck, CheckCircle, Clock, AlertCircle, Star } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RouteProtector } from '@/components/dashboard/RouteProtector';
 import { AdminGradingTable } from '@/components/admin/grading/AdminGradingTable';
 import { getCollection } from '@/lib/firebase-functions';
 import type { AssignedIndicator } from '@/lib/types';
@@ -130,18 +131,19 @@ export default function GradingPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="space-y-6">
-        {/* Mensaje informativo si se accede con un ID específico */}
-        {assignmentId && (
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <FileCheck className="h-5 w-5 text-blue-600" />
-                <p className="text-sm text-blue-800">
-                  Mostrando detalles de la asignación #{assignmentId}. 
-                  Puedes evaluar esta asignación específica o ver todas las evaluaciones pendientes.
-                </p>
+    <RouteProtector allowedRoles={['calificador']}>
+      <div className="container mx-auto py-6">
+        <div className="space-y-6">
+          {/* Mensaje informativo si se accede con un ID específico */}
+          {assignmentId && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="h-5 w-5 text-blue-600" />
+                  <p className="text-sm text-blue-800">
+                    Mostrando detalles de la asignación #{assignmentId}. 
+                    Puedes evaluar esta asignación específica o ver todas las evaluaciones pendientes.
+                  </p>
               </div>
             </CardContent>
           </Card>
@@ -208,7 +210,8 @@ export default function GradingPage() {
             />
           </CardContent>
         </Card>
+        </div>
       </div>
-    </div>
+    </RouteProtector>
   );
 }

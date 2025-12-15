@@ -17,6 +17,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { RouteProtector } from '@/components/dashboard/RouteProtector';
 import { AssignedIndicator, VerificationStatus } from '@/lib/types';
 import { isPast, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -115,18 +116,19 @@ export default function UsuarioDashboard() {
     .slice(0, 5);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard de Usuario</h1>
-          <p className="text-muted-foreground">
-            Bienvenido, {user?.name}. Aquí puedes ver tu progreso y asignaciones.
-          </p>
+    <RouteProtector allowedRoles={['responsable']}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard de Usuario</h1>
+            <p className="text-muted-foreground">
+              Bienvenido, {user?.name}. Aquí puedes ver tu progreso y asignaciones.
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Estadísticas principales */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Estadísticas principales */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Asignaciones</CardTitle>
@@ -346,6 +348,7 @@ export default function UsuarioDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </RouteProtector>
   );
 } 

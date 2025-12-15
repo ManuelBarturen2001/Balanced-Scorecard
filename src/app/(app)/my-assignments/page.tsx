@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Upload, FileText, CheckCircle, Clock, AlertCircle, Users, Filter, Search, Calendar, Award, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RouteProtector } from '@/components/dashboard/RouteProtector';
 import { AssignmentCard } from '@/components/my-assignments/AssignmentCard';
 import { AssignmentDetailsModal } from '@/components/my-assignments/AssignmentDetailsModal';
 import { UserAssignmentCard } from '@/components/my-assignments/UserAssignmentCard';
@@ -273,20 +274,21 @@ export default function MyAssignmentsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {isAsignador ? 'Mis Asignaciones Creadas' : 'Mis Asignaciones'}
-            </h1>
-            <p className="text-muted-foreground">
-              {isAsignador 
-                ? 'Aquí puedes ver todas las asignaciones que has creado'
-                : 'Aquí puedes ver las asignaciones que te han hecho'
-              }
-            </p>
+    <RouteProtector allowedRoles={['asignador', 'responsable']}>
+      <div className="container mx-auto py-6">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                {isAsignador ? 'Mis Asignaciones Creadas' : 'Mis Asignaciones'}
+              </h1>
+              <p className="text-muted-foreground">
+                {isAsignador 
+                  ? 'Aquí puedes ver todas las asignaciones que has creado'
+                  : 'Aquí puedes ver las asignaciones que te han hecho'
+                }
+              </p>
           </div>
           {isAsignador && (
             <Button onClick={() => window.location.href = '/assign-indicators'}>
@@ -566,6 +568,8 @@ export default function MyAssignmentsPage() {
 
         />
       )}
-    </div>
+        </div>
+      </div>
+    </RouteProtector>
   );
 }

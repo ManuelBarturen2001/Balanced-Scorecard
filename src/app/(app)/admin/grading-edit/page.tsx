@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { RouteProtector } from "@/components/dashboard/RouteProtector";
 import { 
   getAllAssignedIndicators, 
   getAllIndicators, 
@@ -177,7 +178,8 @@ export default function GradingEditPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <RouteProtector allowedRoles={['calificador']}>
+      <div className="space-y-6">
       <Card className="border-border">
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
@@ -335,4 +337,6 @@ export default function GradingEditPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )};
+    </RouteProtector>
+  );
+}

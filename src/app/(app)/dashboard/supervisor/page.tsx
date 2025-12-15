@@ -28,6 +28,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { RouteProtector } from '@/components/dashboard/RouteProtector';
 import { AssignedIndicator, User, Faculty, Office, ProfessionalSchool } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllOffices, getAllProfessionalSchools } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,7 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js';
-import { format, isPast, isToday, isWithinInterval, subDays, subWeeks, subMonths, startOfDay, endOfDay } from 'date-fns';
+import { format, isPast, isToday, isWithinInterval, subDays, subWeeks, subMonths, subYears, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { VerificationStatus } from '@/lib/types';
 import { Pie, Bar, Line } from 'react-chartjs-2';
@@ -79,7 +80,7 @@ export default function SupervisorDashboard() {
   const [compactFacultyFilter, setCompactFacultyFilter] = useState<string>('all');
   const [compactSchoolFilter, setCompactSchoolFilter] = useState<string>('all');
   const [compactOfficeFilter, setCompactOfficeFilter] = useState<string>('all');
-  const [compactDateFilter, setCompactDateFilter] = useState<'today' | 'week' | 'month'>('week');
+  const [compactDateFilter, setCompactDateFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('week');
   
   // Filtros para Vista Detallada
   const [detailedFacultyFilter, setDetailedFacultyFilter] = useState<string>('all');
@@ -87,6 +88,7 @@ export default function SupervisorDashboard() {
   const [detailedOfficeFilter, setDetailedOfficeFilter] = useState<string>('all');
   const [detailedDateFrom, setDetailedDateFrom] = useState<Date | undefined>(subMonths(new Date(), 1));
   const [detailedDateTo, setDetailedDateTo] = useState<Date | undefined>(new Date());
+  const [detailedDateMode, setDetailedDateMode] = useState<'all' | 'byDate'>('byDate');
   
   // Filtros para gráfico de facultades (detallado)
   const [facultyGraphMode, setFacultyGraphMode] = useState<'faculty' | 'school'>('faculty');
@@ -212,7 +214,7 @@ export default function SupervisorDashboard() {
   };
 
   // Función auxiliar para filtrar por fecha compacta
-  const filterByCompactDate = (assignment: any, dateFilter: 'today' | 'week' | 'month') => {
+  const filterByCompactDate = (assignment: any, dateFilter: 'today' | 'week' | 'month' | 'year' | 'all') => {
     const assignmentDate = assignment.assignedDateObj;
     if (!assignmentDate) return false;
     
@@ -224,6 +226,10 @@ export default function SupervisorDashboard() {
         return isWithinInterval(assignmentDate, { start: subWeeks(now, 1), end: now });
       case 'month':
         return isWithinInterval(assignmentDate, { start: subMonths(now, 1), end: now });
+      case 'year':
+        return isWithinInterval(assignmentDate, { start: subYears(now, 1), end: now });
+      case 'all':
+        return true;
       default:
         return true;
     }
@@ -251,7 +257,7 @@ export default function SupervisorDashboard() {
     } else {
       return normalizedAssignments.filter(assignment => 
         filterByEntity(assignment, detailedFacultyFilter, detailedSchoolFilter, detailedOfficeFilter) &&
-        filterByDateRange(assignment, detailedDateFrom, detailedDateTo)
+        (detailedDateMode === 'all' ? true : filterByDateRange(assignment, detailedDateFrom, detailedDateTo))
       );
     }
   };
@@ -1164,14 +1170,15 @@ export default function SupervisorDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard de Supervisor</h1>
-          <p className="text-muted-foreground">
-            Panel de supervisión general del sistema
-          </p>
-        </div>
+    <RouteProtector allowedRoles={['supervisor']}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard de Supervisor</h1>
+            <p className="text-muted-foreground">
+              Panel de supervisión general del sistema
+            </p>
+          </div>
         <div className="flex gap-2">
           <SendNotificationDialog users={users} />
           <Button onClick={generatePDFReport} variant="outline" size="sm">
@@ -1285,6 +1292,8 @@ export default function SupervisorDashboard() {
                     <SelectItem value="today">Hoy</SelectItem>
                     <SelectItem value="week">Última semana</SelectItem>
                     <SelectItem value="month">Último mes</SelectItem>
+                    <SelectItem value="year">Último año</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1346,44 +1355,64 @@ export default function SupervisorDashboard() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <label className="text-sm font-medium">Filtrado</label>
+                  <Select value={detailedDateMode} onValueChange={(value: any) => setDetailedDateMode(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="byDate">Por fecha</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <label className="text-sm font-medium">Fecha desde</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {detailedDateFrom ? format(detailedDateFrom, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <CalendarComponent
-                        mode="single"
-                        selected={detailedDateFrom}
-                        onSelect={setDetailedDateFrom}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  {detailedDateMode === 'byDate' ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {detailedDateFrom ? format(detailedDateFrom, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={detailedDateFrom}
+                          onSelect={setDetailedDateFrom}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <div className="text-sm text-muted-foreground py-2">Todas las fechas</div>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Fecha hasta</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {detailedDateTo ? format(detailedDateTo, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <CalendarComponent
-                        mode="single"
-                        selected={detailedDateTo}
-                        onSelect={setDetailedDateTo}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  {detailedDateMode === 'byDate' ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {detailedDateTo ? format(detailedDateTo, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={detailedDateTo}
+                          onSelect={setDetailedDateTo}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <div className="text-sm text-muted-foreground py-2">Todas las fechas</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2101,6 +2130,7 @@ export default function SupervisorDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </RouteProtector>
   );
 } 

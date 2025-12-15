@@ -22,6 +22,7 @@ import {
   Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { RouteProtector } from '@/components/dashboard/RouteProtector';
 import { AssignedIndicator, User, Faculty, ProfessionalSchool, Office, Perspective } from '@/lib/types';
 import { getAllAssignedIndicators, getAllUsers, getAllFaculties, getAllProfessionalSchools, getAllOffices, getAllPerspectives } from '@/lib/data';
 import { isPast, format } from 'date-fns';
@@ -299,19 +300,20 @@ export default function AsignadorDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard de Asignador</h1>
-          <p className="text-muted-foreground">
-            Bienvenido, {user?.name}. Aquí puedes gestionar las asignaciones de tu facultad.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={async () => await generatePDFReport()} variant="outline" size="sm">
-            <FileDown className="h-4 w-4 mr-2" />
-            Reporte PDF
-          </Button>
+    <RouteProtector allowedRoles={['asignador']}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard de Asignador</h1>
+            <p className="text-muted-foreground">
+              Bienvenido, {user?.name}. Aquí puedes gestionar las asignaciones de tu facultad.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={async () => await generatePDFReport()} variant="outline" size="sm">
+              <FileDown className="h-4 w-4 mr-2" />
+              Reporte PDF
+            </Button>
           <Button onClick={async () => await generateExcelReport()} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Reporte Excel
@@ -659,6 +661,7 @@ export default function AsignadorDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </RouteProtector>
   );
 } 

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { RouteProtector } from '@/components/dashboard/RouteProtector';
 import { AssignedIndicator, VerificationStatus, User } from '@/lib/types';
 import { isPast, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -218,20 +219,21 @@ export default function CalificadorDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard de Calificador</h1>
-          <p className="text-muted-foreground">
-            Bienvenido, {user?.name}. Aquí puedes gestionar tus evaluaciones.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={async () => await generatePDFReport()} variant="outline" size="sm">
-            <FileDown className="h-4 w-4 mr-2" />
-            Reporte PDF
-          </Button>
-          <Button onClick={async () => await generateExcelReport()} variant="outline" size="sm">
+    <RouteProtector allowedRoles={['calificador']}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard de Calificador</h1>
+            <p className="text-muted-foreground">
+              Bienvenido, {user?.name}. Aquí puedes gestionar tus evaluaciones.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={async () => await generatePDFReport()} variant="outline" size="sm">
+              <FileDown className="h-4 w-4 mr-2" />
+              Reporte PDF
+            </Button>
+            <Button onClick={async () => await generateExcelReport()} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Reporte Excel
           </Button>
@@ -539,6 +541,7 @@ export default function CalificadorDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </RouteProtector>
   );
 } 

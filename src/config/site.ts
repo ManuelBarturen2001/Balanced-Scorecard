@@ -1,6 +1,6 @@
 
 import type { NavItemConfig } from '@/lib/types';
-import { LayoutDashboard, ListPlus, Users, ClipboardList, ClipboardCheck, UserCheck, BarChart3, Pencil, FileEdit } from 'lucide-react';
+import { LayoutDashboard, ListPlus, Users, ClipboardList, ClipboardCheck, UserCheck, BarChart3, Pencil, FileEdit, Settings } from 'lucide-react';
 
 export const AppConfig = {
   name: "Sistema Web de Balanced Scorecard",
@@ -70,6 +70,12 @@ export const navItems: NavItemConfig[] = [
     title: 'Gestión de Calificaciones',
     href: '/admin/calificaciones',
     icon: ClipboardCheck,
+    adminOnly: true,
+  },
+  {
+    title: 'Gestión de Perspectivas e Indicadores',
+    href: '/admin/perspectives-management',
+    icon: Settings,
     adminOnly: true,
   }
 ];

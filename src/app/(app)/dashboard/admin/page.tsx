@@ -80,7 +80,10 @@ export default function AdminDashboard() {
   const [compactFacultyFilter, setCompactFacultyFilter] = useState<string>('all');
   const [compactSchoolFilter, setCompactSchoolFilter] = useState<string>('all');
   const [compactOfficeFilter, setCompactOfficeFilter] = useState<string>('all');
+  const [compactDateMode, setCompactDateMode] = useState<'preset' | 'custom'>('preset');
   const [compactDateFilter, setCompactDateFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('month');
+  const [compactDateFrom, setCompactDateFrom] = useState<Date | undefined>(subMonths(new Date(), 1));
+  const [compactDateTo, setCompactDateTo] = useState<Date | undefined>(new Date());
   
   // Filtros para Vista Detallada
   const [detailedFacultyFilter, setDetailedFacultyFilter] = useState<string>('all');
@@ -215,34 +218,40 @@ export default function AdminDashboard() {
   };
 
   // Función auxiliar para filtrar por fecha compacta
-  const filterByCompactDate = (assignment: any, dateFilter: 'today' | 'week' | 'month' | 'year' | 'all') => {
-    // Si no hay fecha de asignación, incluir la asignación
-    if (!assignment || !assignment.assignedDateObj) return true;
+  const filterByCompactDate = (assignment: any) => {
+    const assignmentDate = assignment.assignedDateObj;
+    if (!assignmentDate) return true;
     
     const now = new Date();
-    const assignmentDate = assignment.assignedDateObj;
     
+    // Si es modo personalizado
+    if (compactDateMode === 'custom') {
+      if (!compactDateFrom || !compactDateTo) return true;
+      return isWithinInterval(assignmentDate, { 
+        start: startOfDay(compactDateFrom), 
+        end: endOfDay(compactDateTo) 
+      });
+    }
+    
+    // Si es modo preestablecido
     try {
-      switch (dateFilter) {
+      switch (compactDateFilter) {
         case 'today':
           const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
           return assignmentDate >= todayStart && assignmentDate <= todayEnd;
         
         case 'week':
-          // Considerar la última semana
           const weekStart = new Date(now);
           weekStart.setDate(now.getDate() - 7);
           return assignmentDate >= weekStart && assignmentDate <= now;
         
         case 'month':
-          // Considerar el último mes
           const monthStart = new Date(now);
           monthStart.setMonth(now.getMonth() - 1);
           return assignmentDate >= monthStart && assignmentDate <= now;
 
         case 'year':
-          // Considerar el último año
           const yearStart = new Date(now);
           yearStart.setFullYear(now.getFullYear() - 1);
           return assignmentDate >= yearStart && assignmentDate <= now;
@@ -254,7 +263,6 @@ export default function AdminDashboard() {
           return true;
       }
     } catch (error) {
-      // Si hay algún error al procesar las fechas, incluir la asignación
       console.error('Error processing date filter:', error);
       return true;
     }
@@ -294,7 +302,7 @@ export default function AdminDashboard() {
       filtered = filtered.filter(assignment => {
         try {
           if (viewMode === 'compact') {
-            return filterByCompactDate(assignment, compactDateFilter);
+            return filterByCompactDate(assignment);
           } else {
             // Si el modo detallado es 'all' no filtrar por fecha
             if (detailedDateMode === 'all') return true;
@@ -1331,19 +1339,74 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <label className="text-sm font-medium">Período</label>
-                <Select value={compactDateFilter} onValueChange={(value: any) => setCompactDateFilter(value)}>
+                <Select value={compactDateMode} onValueChange={(value: any) => setCompactDateMode(value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="today">Hoy</SelectItem>
-                    <SelectItem value="week">Última semana</SelectItem>
-                    <SelectItem value="month">Último mes</SelectItem>
-                    <SelectItem value="year">Último año</SelectItem>
-                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="preset">Preestablecido</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {compactDateMode === 'preset' ? (
+                <div>
+                  <label className="text-sm font-medium">Filtro de tiempo</label>
+                  <Select value={compactDateFilter} onValueChange={(value: any) => setCompactDateFilter(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Hoy</SelectItem>
+                      <SelectItem value="week">Última semana</SelectItem>
+                      <SelectItem value="month">Último mes</SelectItem>
+                      <SelectItem value="year">Último año</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-sm font-medium">Fecha desde</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {compactDateFrom ? format(compactDateFrom, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={compactDateFrom}
+                          onSelect={setCompactDateFrom}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Fecha hasta</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {compactDateTo ? format(compactDateTo, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={compactDateTo}
+                          onSelect={setCompactDateTo}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

@@ -80,7 +80,10 @@ export default function SupervisorDashboard() {
   const [compactFacultyFilter, setCompactFacultyFilter] = useState<string>('all');
   const [compactSchoolFilter, setCompactSchoolFilter] = useState<string>('all');
   const [compactOfficeFilter, setCompactOfficeFilter] = useState<string>('all');
+  const [compactDateMode, setCompactDateMode] = useState<'preset' | 'custom'>('preset');
   const [compactDateFilter, setCompactDateFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('week');
+  const [compactDateFrom, setCompactDateFrom] = useState<Date | undefined>(subMonths(new Date(), 1));
+  const [compactDateTo, setCompactDateTo] = useState<Date | undefined>(new Date());
   
   // Filtros para Vista Detallada
   const [detailedFacultyFilter, setDetailedFacultyFilter] = useState<string>('all');
@@ -214,12 +217,23 @@ export default function SupervisorDashboard() {
   };
 
   // Función auxiliar para filtrar por fecha compacta
-  const filterByCompactDate = (assignment: any, dateFilter: 'today' | 'week' | 'month' | 'year' | 'all') => {
+  const filterByCompactDate = (assignment: any) => {
     const assignmentDate = assignment.assignedDateObj;
     if (!assignmentDate) return false;
     
     const now = new Date();
-    switch (dateFilter) {
+    
+    // Si es modo personalizado
+    if (compactDateMode === 'custom') {
+      if (!compactDateFrom || !compactDateTo) return true;
+      return isWithinInterval(assignmentDate, { 
+        start: startOfDay(compactDateFrom), 
+        end: endOfDay(compactDateTo) 
+      });
+    }
+    
+    // Si es modo preestablecido
+    switch (compactDateFilter) {
       case 'today':
         return isToday(assignmentDate);
       case 'week':
@@ -252,7 +266,7 @@ export default function SupervisorDashboard() {
     if (viewMode === 'compact') {
       return normalizedAssignments.filter(assignment => 
         filterByEntity(assignment, compactFacultyFilter, compactSchoolFilter, compactOfficeFilter) &&
-        filterByCompactDate(assignment, compactDateFilter)
+        filterByCompactDate(assignment)
       );
     } else {
       return normalizedAssignments.filter(assignment => 
@@ -1284,19 +1298,74 @@ export default function SupervisorDashboard() {
               </div>
               <div>
                 <label className="text-sm font-medium">Período</label>
-                <Select value={compactDateFilter} onValueChange={(value: any) => setCompactDateFilter(value)}>
+                <Select value={compactDateMode} onValueChange={(value: any) => setCompactDateMode(value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="today">Hoy</SelectItem>
-                    <SelectItem value="week">Última semana</SelectItem>
-                    <SelectItem value="month">Último mes</SelectItem>
-                    <SelectItem value="year">Último año</SelectItem>
-                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="preset">Preestablecido</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {compactDateMode === 'preset' ? (
+                <div>
+                  <label className="text-sm font-medium">Filtro de tiempo</label>
+                  <Select value={compactDateFilter} onValueChange={(value: any) => setCompactDateFilter(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Hoy</SelectItem>
+                      <SelectItem value="week">Última semana</SelectItem>
+                      <SelectItem value="month">Último mes</SelectItem>
+                      <SelectItem value="year">Último año</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-sm font-medium">Fecha desde</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {compactDateFrom ? format(compactDateFrom, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={compactDateFrom}
+                          onSelect={setCompactDateFrom}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Fecha hasta</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {compactDateTo ? format(compactDateTo, 'dd/MM/yyyy', { locale: es }) : 'Seleccionar fecha'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={compactDateTo}
+                          onSelect={setCompactDateTo}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
